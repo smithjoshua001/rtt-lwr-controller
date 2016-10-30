@@ -4,7 +4,7 @@ import("rst-rt_typekit")
 
 import("rtt_gazebo_embedded")
 import("rtt-gazebo-robot-sim")
-import("LWRController")
+import("LWRControllerContained")
 require("os")
 
 loadComponent("gazebo","RTTGazeboEmbedded")
@@ -32,7 +32,7 @@ var string path_model_srdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.srd
 coman_gazebo.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
 coman_gazebo.configure()
 
-loadComponent("controller", "PositionNormalControllerContained")
+loadComponent("controller", "ControllerContained")
 setActivity("controller",0.001,10,ORO_SCHED_OTHER)
 controller.setBaseAndTip("krc_base","left_lwr_arm_7_link")
 #controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
