@@ -66,8 +66,9 @@ void ControllerContained::updateHook() {
 	Eigen::Quaternionf quat_t, quat;
 
 	//Damping term for simulation! This may not be needed for the real robot! Don't use initially with real robot!
-//	damping.resize(7);
+	damping.resize(7);
 //	damping << 5, 5, 3, 3, 1, 1, 1;
+	damping<<0,0,0,0,0,0,0;
 
 	quat_t2.resize(4);
 
