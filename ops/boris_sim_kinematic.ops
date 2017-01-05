@@ -1,0 +1,74 @@
+import("eigen_typekit")
+import("kdl_typekit")
+import("rst-rt_typekit")
+
+import("rtt_gazebo_embedded")
+import("rtt-gazebo-robot-sim")
+import("LWRControllerContained")
+require("os")
+
+loadComponent("gazebo","RTTGazeboEmbedded")
+setActivity("gazebo",0,10,ORO_SCHED_OTHER)
+gazebo.argv = strings("--verbose")
+gazebo.add_plugin("libRTTGazeboClockPlugin.so")
+
+loadComponent("coman_gazebo","cogimon::robotSim")
+setActivity("coman_gazebo",0,11,ORO_SCHED_OTHER)
+
+var string path_world=os.getenv("prefix")+"/cogimon-minimal-nightly/etc/cogimon-scenarios/scenario-wipe-board/world/scn-wipe-board-vertical-boris-base.world"
+gazebo.world_path = path_world
+
+gazebo.configure()
+gazebo.start()
+gazebo.toggleDynamicsSimulation(false)
+
+gazebo.spawn_model_at_pos("kuka-lwr", "model://boris-ft", 0,0,0)
+
+
+coman_gazebo.getModel("kuka-lwr")
+var int DOFsize = 7;
+var string path_model_urdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.urdf"
+var string path_model_srdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.srdf"
+coman_gazebo.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+coman_gazebo.configure()
+var rstrt.kinematics.JointAngles desJointAngles_start = rstrt.kinematics.JointAngles(14)
+desJointAngles_start.angles[0] =2.5 
+desJointAngles_start.angles[1] =-1.81326
+desJointAngles_start.angles[2] =-1.21934
+desJointAngles_start.angles[3] =1.34302
+desJointAngles_start.angles[4] =2.96706
+desJointAngles_start.angles[5] =-1.71339
+desJointAngles_start.angles[6] = 0
+desJointAngles_start.angles[7] =2.5 
+desJointAngles_start.angles[8] =-1.81326
+desJointAngles_start.angles[9] =-1.21934
+desJointAngles_start.angles[10] =1.34302
+desJointAngles_start.angles[11] =2.96706
+desJointAngles_start.angles[12] =-1.71339
+desJointAngles_start.angles[13] = 0
+
+gazebo.setInitialConfigurationForModel("kuka-lwr", desJointAngles_start);
+
+loadComponent("controller", "KTSController")
+setActivity("controller",0.1,10,ORO_SCHED_OTHER)
+controller.setBaseAndTip("krc_base","left_lwr_arm_7_link")
+#controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
+controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+controller.configure()
+
+
+# connect all auxiliaries
+var ConnPolicy cp_aux;
+connect("coman_gazebo.left_full_arm_JointFeedback", "controller.RobotIn", cp_aux)
+connect("controller.ja_out","coman_gazebo.left_full_arm_JointPositionCtrl",cp_aux)
+
+coman_gazebo.setControlMode("left_full_arm", "JointPositionCtrl")
+gazebo.toggleDynamicsSimulation(true)
+
+controller.setPos(0.5,0.3,1)
+controller.setStepSize(0.05)
+controller.start()
+gazebo.stop()
+
+
+
