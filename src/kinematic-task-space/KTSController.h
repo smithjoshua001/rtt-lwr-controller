@@ -11,6 +11,7 @@
 
 #include <rtt/TaskContext.hpp>
 #include <rst-rt/kinematics/JointAngles.hpp>
+#include <rst-rt/dynamics/JointTorques.hpp>
 #include <rst-rt/robot/JointState.hpp>
 #include <XBotCoreModel.h>
 #include <kdl_parser/kdl_parser.hpp>
@@ -52,9 +53,11 @@ public:
 
 	// Declare output ports and their datatypes
 	RTT::OutputPort<rstrt::kinematics::JointAngles> out_angles_port;
+	RTT::OutputPort<rstrt::dynamics::JointTorques> out_torques_port;
 
 //	rstrt::robot::JointState in_robotstatus_var;
 	rstrt::kinematics::JointAngles out_angles_var;
+	rstrt::dynamics::JointTorques out_torques_var;
 	Eigen::Vector3f pos;
 	float step_size;
 //	RTT::FlowStatus robot_state_flow;
