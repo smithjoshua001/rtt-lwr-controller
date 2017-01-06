@@ -51,7 +51,7 @@ gazebo.setInitialConfigurationForModel("kuka-lwr", desJointAngles_start);
 
 loadComponent("controller", "KTSController")
 setActivity("controller",0.1,10,ORO_SCHED_OTHER)
-controller.setBaseAndTip("krc_base","left_lwr_arm_7_link")
+controller.setBaseAndTip("krc_base","left_lwr_tool_link")
 #controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
 controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
 controller.configure()
@@ -61,12 +61,25 @@ controller.configure()
 var ConnPolicy cp_aux;
 connect("coman_gazebo.left_full_arm_JointFeedback", "controller.RobotIn", cp_aux)
 connect("controller.ja_out","coman_gazebo.left_full_arm_JointPositionCtrl",cp_aux)
+connect("controller.jt_out","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
 
-coman_gazebo.setControlMode("left_full_arm", "JointPositionCtrl")
+coman_gazebo.setControlMode("left_full_arm", "JointTorqueCtrl")
 gazebo.toggleDynamicsSimulation(true)
 
-controller.setPos(0.5,0.3,1)
-controller.setStepSize(0.05)
+#controller.quat_x=-0.5
+#controller.quat_y=-0.5
+#controller.quat_z=0.5
+#controller.quat_w=0.5
+controller.quat_x=0
+controller.quat_y=1
+controller.quat_z=0
+controller.quat_w=0
+controller.K=100
+controller.D=5
+
+controller.setPos(0.3,0.3,1.2)
+controller.setStepSize(0.5)
+
 controller.start()
 gazebo.stop()
 

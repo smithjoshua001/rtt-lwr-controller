@@ -23,6 +23,7 @@
 #include <kdl/jacobian.hpp>
 #include <string>
 #include "../kinematic-chain/ChainBase.h"
+#include <Eigen/src/Core/DenseBase.h>
 
 class KTSController: public RTT::TaskContext, public ChainBase {
 public:
@@ -60,6 +61,8 @@ public:
 	rstrt::dynamics::JointTorques out_torques_var;
 	Eigen::Vector3f pos;
 	float step_size;
+	Eigen::VectorXf quat_d;
+	float K,D;
 //	RTT::FlowStatus robot_state_flow;
 //	unsigned int DOFsize;
 //	boost::shared_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver;
