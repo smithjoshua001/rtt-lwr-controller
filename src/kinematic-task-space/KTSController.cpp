@@ -188,7 +188,8 @@ void KTSController::updateHook() {
 			* ((jac.transpose() * (jac * jac.transpose()).inverse()) * posError)
 			- D * (robot_state.velocities);
 	//out_torques_var.torques.setZero();
-//	RTT::log(RTT::Info) << out_torques_var.torques << RTT::endlog();
+	RTT::log(RTT::Info) << quat_temp <<": QUATERNION VALUE" << RTT::endlog();
+	//out_torques_var.torques.setZero();
 	out_torques_port.write(out_torques_var);
 
 }
