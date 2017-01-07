@@ -35,10 +35,7 @@ KTSController::KTSController(std::string const & name) :
 	properties()->addProperty("Ko", Ko);
 	properties()->addProperty("Do", Do);
 
-	in_M.setZero();
-	in_M_port.setName("in_M");
-	in_M_port.doc("input inertia matrix");
-	in_M_flow = RTT::NoData;
+	
 	//ports()->addPort(robot_state_port);
 	//out_angles_var.angles.resize(DOFsize);
 	//out_angles_var.angles.setZero();
@@ -64,6 +61,11 @@ bool KTSController::configureHook() {
 	out_torques_port.setName("jt_out");
 	out_torques_port.setDataSample(out_torques_var);
 	ports()->addPort(out_torques_port);
+	in_M.setZero();
+	in_M_port.setName("in_M");
+	in_M_port.doc("input inertia matrix");
+	in_M_flow = RTT::NoData;
+	ports()->addPort(in_M_port);
 	return true;
 
 }
@@ -166,16 +168,16 @@ void KTSController::updateHook() {
 
 	posError.tail<3>() = -rot_mat * delta_quat;
 //	RTT::log(RTT::Info) << "POSERROR: " << posError << RTT::endlog();
-	if (posError.head<3>().norm() > step_size) {
-		posError.head<3>() /= (posError.head<3>().norm() / (float) step_size);
-	}
+	//if (posError.head<3>().norm() > step_size) {
+//		posError.head<3>() /= (posError.head<3>().norm() / (float) step_size);
+//	}
 
 //	Eigen::MatrixXf jacResize(3, jac.cols());
 //	jacResize = jac.block(0, 0, 3, jac.cols());
 //RTT::log(RTT::Info)<<jacResize<<RTT::endlog();
 
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver(jac.rows(), jac.cols());
-	svd_solver.compute(jac, Eigen::ComputeFullU | Eigen::ComputeFullV);
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver(in_M.rows(), in_M.cols());
+	svd_solver.compute(in_M, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
 	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values =
 			svd_solver.singularValues();
@@ -187,7 +189,7 @@ void KTSController::updateHook() {
 		}
 	}
 
-	Eigen::MatrixXf jacPinv = svd_solver.matrixV().leftCols(
+	Eigen::MatrixXf in_M_Pinv = svd_solver.matrixV().leftCols(
 			singular_values.size()) * singular_values.asDiagonal()
 			* svd_solver.matrixU().leftCols(singular_values.size()).transpose();
 //	out_angles_var.angles = robot_state.angles;	//+jacPinv*posError;// (jacResize.transpose()*(jacResize*jacResize.transpose()).inverse())*posError;
@@ -208,23 +210,43 @@ void KTSController::updateHook() {
 	posError.tail<3>() *= Ko;
 
 	Eigen::VectorXf velError(6);
-	velError.head<3>() = -Eigen::Map<Eigen::Array<double, 3, 1>>(
-			cart_vel.GetTwist().vel.data).cast<float>() * Dp;
-	velError.tail<3>() = -Eigen::Map<Eigen::Array<double, 3, 1>>(
-			cart_vel.GetTwist().rot.data).cast<float>() * Do;
+	velError.head<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
+			cart_vel.GetTwist().vel.data).cast<float>() * -Dp;
+	velError.tail<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
+			cart_vel.GetTwist().rot.data).cast<float>() * -Do;
 
 	Eigen::VectorXf xdd(6);
+
 	xdd = posError + velError;
 	Eigen::VectorXf damping(7);
 	damping << 5, 5, 3, 3, 1, 1, 1;
 
 //	Eigen::MatrixXf jmjt = (jac * M.inverse() * jac.transpose()).inverse();
-	Eigen::MatrixXf jmjt = (jac * in_M.inverse() * jac.transpose()).inverse();
+	Eigen::MatrixXf jmjtinv = (jac * in_M_Pinv * jac.transpose());
+
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver2(jmjtinv.rows(), jmjtinv.cols());
+	svd_solver2.compute(jmjtinv, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values2 =
+			svd_solver2.singularValues();
+	for (int i = 0; i < singular_values2.size(); i++) {
+		if (singular_values2(i) < 1.e-06) {
+			singular_values2(i) = 0;
+		} else {
+			singular_values2(i) = 1 / singular_values2(i);
+		}
+	}
+
+	Eigen::MatrixXf jmjt = svd_solver2.matrixV().leftCols(
+			singular_values2.size()) * singular_values2.asDiagonal()
+			* svd_solver2.matrixU().leftCols(singular_values2.size()).transpose();
+
 	out_torques_var.torques = jac.transpose()
 			* (jmjt * (xdd - jacd * robot_state.velocities))
 			;//+ (robot_state.velocities.cwiseProduct(damping));
 
 	RTT::log(RTT::Info) << quat_temp <<": QUATERNION VALUE" << RTT::endlog();
+	RTT::log(RTT::Info) << in_M<<":\n"<<M <<": IN_M VALUE" << RTT::endlog();
 	//out_torques_var.torques.setZero();
 	out_torques_port.write(out_torques_var);
 
