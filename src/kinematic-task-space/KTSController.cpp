@@ -202,6 +202,7 @@ void KTSController::updateHook() {
 //			* ((jac.transpose() * (jac * jac.transpose()).inverse()) * posError)
 //			- D * (robot_state.velocities);
 	//out_torques_var.torques.setZero();
+<<<<<<< HEAD
 //	RTT::log(RTT::Info) << out_torques_var.torques << RTT::endlog();
 	posError.head<3>() *= Kp;
 	posError.tail<3>() *= Ko;
@@ -223,6 +224,8 @@ void KTSController::updateHook() {
 			* (jmjt * (xdd - jacd * robot_state.velocities))
 			;//+ (robot_state.velocities.cwiseProduct(damping));
 
+	RTT::log(RTT::Info) << quat_temp <<": QUATERNION VALUE" << RTT::endlog();
+	//out_torques_var.torques.setZero();
 	out_torques_port.write(out_torques_var);
 
 }
