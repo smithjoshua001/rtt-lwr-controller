@@ -202,7 +202,7 @@ void KTSController::updateHook() {
 //			* ((jac.transpose() * (jac * jac.transpose()).inverse()) * posError)
 //			- D * (robot_state.velocities);
 	//out_torques_var.torques.setZero();
-<<<<<<< HEAD
+
 //	RTT::log(RTT::Info) << out_torques_var.torques << RTT::endlog();
 	posError.head<3>() *= Kp;
 	posError.tail<3>() *= Ko;
