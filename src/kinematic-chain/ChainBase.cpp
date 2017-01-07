@@ -149,6 +149,8 @@ void ChainBase::calculateKinematics(
 			activeChain_KDL.getNrOfSegments());
 	jnt_to_cart_pos_solver->JntToCart(jointStates_KDL.q, cart_pos,
 			activeChain_KDL.getNrOfSegments());
+	jnt_to_cart_vel_solver->JntToCart(jointStates_KDL, cart_vel,
+				activeChain_KDL.getNrOfSegments());
 	jac = jac_kdl.data.cast<float>();
 
 }

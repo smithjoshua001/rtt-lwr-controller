@@ -74,8 +74,10 @@ controller.quat_x=0
 controller.quat_y=1
 controller.quat_z=0
 controller.quat_w=0
-controller.K=100
-controller.D=5
+controller.Kp=50
+controller.Dp=3
+controller.Ko=200
+controller.Do=2
 
 controller.setPos(0.3,0.3,1.2)
 controller.setStepSize(0.5)

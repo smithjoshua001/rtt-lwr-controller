@@ -8,7 +8,6 @@
 #include "KTSController.h"
 #include <rtt/Component.hpp>
 
-
 KTSController::KTSController(std::string const & name) :
 		RTT::TaskContext(name), ChainBase(name) {
 	this->addOperation("setBaseAndTip", &KTSController::setBaseAndTip, this,
@@ -23,14 +22,23 @@ KTSController::KTSController(std::string const & name) :
 	pos.setZero();
 	quat_d.resize(4);
 	quat_d.setZero();
-	K = 10;
-	D = 0.2;
+	Kp = 10;
+	Dp = 0.2;
+	Ko = 10;
+	Do = 0.2;
 	properties()->addProperty("quat_x", quat_d(0));
 	properties()->addProperty("quat_y", quat_d(1));
 	properties()->addProperty("quat_z", quat_d(2));
 	properties()->addProperty("quat_w", quat_d(3));
-	properties()->addProperty("K", K);
-	properties()->addProperty("D", D);
+	properties()->addProperty("Kp", Kp);
+	properties()->addProperty("Dp", Dp);
+	properties()->addProperty("Ko", Ko);
+	properties()->addProperty("Do", Do);
+
+	in_M.setZero();
+	in_M_port.setName("in_M");
+	in_M_port.doc("input inertia matrix");
+	in_M_flow = RTT::NoData;
 	//ports()->addPort(robot_state_port);
 	//out_angles_var.angles.resize(DOFsize);
 	//out_angles_var.angles.setZero();
@@ -60,15 +68,21 @@ bool KTSController::configureHook() {
 
 }
 bool KTSController::startHook() {
-	return (robot_state_port.connected() && out_angles_port.connected());
+	return (robot_state_port.connected() && out_angles_port.connected()
+			&& in_M_port.connected());
 }
 void KTSController::updateHook() {
 	robot_state_flow = robot_state_port.read(robot_state);
 	if (robot_state_flow != RTT::NewData) {
 		return;
 	}
+	in_M_flow = in_M_port.read(in_M);
+	if (in_M_flow != RTT::NewData) {
+		return;
+	}
 
-	calculateKinematics(robot_state);
+//	calculateKinematics(robot_state);
+	calculateKinematicsDynamics(robot_state);
 	RTT::log(RTT::Info) << cart_pos.p << RTT::endlog();
 	Eigen::VectorXd quat_temp(4);
 	cart_pos.M.GetQuaternion(quat_temp(0), quat_temp(1), quat_temp(2),
@@ -84,9 +98,9 @@ void KTSController::updateHook() {
 	rot_mat_curr(2, 1) = cart_pos.M.data[7];
 	rot_mat_curr(2, 2) = cart_pos.M.data[8];
 	Eigen::Quaternionf eigen_quat(rot_mat_curr);
-	RTT::log(RTT::Info)<<eigen_quat.vec()<<", "<<quat_temp<<"\nCOMPARISON TEST"<<RTT::endlog();
+	RTT::log(RTT::Info) << eigen_quat.vec() << ", " << quat_temp
+			<< "\nCOMPARISON TEST" << RTT::endlog();
 //	RTT::log(RTT::Info)<<eigen_quat(0)-quat_temp(0)<<","<<eigen_quat(1)-quat_temp(1)<<", "<<eigen_quat(2)-quat_temp(2)<<", "<<eigen_quat(3)-quat_temp(3)<<"\n QUATERNION ERROR"<<RTT::endlog();
-
 
 	Eigen::VectorXf quat = quat_temp.cast<float>();
 	quat_d.normalize();
@@ -142,7 +156,7 @@ void KTSController::updateHook() {
 	rot_mat(2, 0) = rot_KDL.data[6];
 	rot_mat(2, 1) = rot_KDL.data[7];
 	rot_mat(2, 2) = rot_KDL.data[8];
-	Eigen::Matrix3f relative_rot = rot_mat.transpose()*rot_mat_curr;
+	Eigen::Matrix3f relative_rot = rot_mat.transpose() * rot_mat_curr;
 	Eigen::Quaternionf relative_quat(relative_rot);
 	delta_quat = relative_quat.vec().cast<float>();
 
@@ -184,11 +198,31 @@ void KTSController::updateHook() {
 //			<< (jac.transpose()
 //					* (jac * jac.transpose()).inverse()) * posError
 //			<< ": JOINTPOS ERROR" << RTT::endlog();
-	out_torques_var.torques = K
-			* ((jac.transpose() * (jac * jac.transpose()).inverse()) * posError)
-			- D * (robot_state.velocities);
+//	out_torques_var.torques = K
+//			* ((jac.transpose() * (jac * jac.transpose()).inverse()) * posError)
+//			- D * (robot_state.velocities);
 	//out_torques_var.torques.setZero();
 //	RTT::log(RTT::Info) << out_torques_var.torques << RTT::endlog();
+	posError.head<3>() *= Kp;
+	posError.tail<3>() *= Ko;
+
+	Eigen::VectorXf velError(6);
+	velError.head<3>() = -Eigen::Map<Eigen::Array<double, 3, 1>>(
+			cart_vel.GetTwist().vel.data).cast<float>() * Dp;
+	velError.tail<3>() = -Eigen::Map<Eigen::Array<double, 3, 1>>(
+			cart_vel.GetTwist().rot.data).cast<float>() * Do;
+
+	Eigen::VectorXf xdd(6);
+	xdd = posError + velError;
+	Eigen::VectorXf damping(7);
+	damping << 5, 5, 3, 3, 1, 1, 1;
+
+//	Eigen::MatrixXf jmjt = (jac * M.inverse() * jac.transpose()).inverse();
+	Eigen::MatrixXf jmjt = (jac * in_M.inverse() * jac.transpose()).inverse();
+	out_torques_var.torques = jac.transpose()
+			* (jmjt * (xdd - jacd * robot_state.velocities))
+			;//+ (robot_state.velocities.cwiseProduct(damping));
+
 	out_torques_port.write(out_torques_var);
 
 }

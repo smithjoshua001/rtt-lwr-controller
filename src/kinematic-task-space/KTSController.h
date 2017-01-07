@@ -50,6 +50,11 @@ public:
 //			const std::string &SRDF_path);
 
 	// Declare input ports and their datatypes
+	RTT::InputPort<Eigen::Matrix<float,7,7>> in_M_port;
+
+	RTT::FlowStatus in_M_flow;
+
+	Eigen::Matrix<float,7,7> in_M;
 //	RTT::InputPort<rstrt::robot::JointState> in_robotstatus_port;
 
 	// Declare output ports and their datatypes
@@ -62,7 +67,7 @@ public:
 	Eigen::Vector3f pos;
 	float step_size;
 	Eigen::VectorXf quat_d;
-	float K,D;
+	float Kp,Dp,Ko,Do;
 //	RTT::FlowStatus robot_state_flow;
 //	unsigned int DOFsize;
 //	boost::shared_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver;
