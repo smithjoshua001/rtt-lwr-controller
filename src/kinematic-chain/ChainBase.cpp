@@ -158,12 +158,13 @@ void ChainBase::calculateKinematicsDynamics(
 		const rstrt::robot::JointState& jointState) {
 	jointStates_KDL.q.data = jointState.angles.cast<double>();
 	jointStates_KDL.qdot.data = jointState.velocities.cast<double>();
-	id_solver->JntToGravity(jointStates_KDL.q, G_kdl);
+	/*id_solver->JntToGravity(jointStates_KDL.q, G_kdl);
 	id_solver->JntToCoriolis(jointStates_KDL.q, jointStates_KDL.qdot, C_kdl);
 	id_solver->JntToMass(jointStates_KDL.q, M_kdl);
 	M = M_kdl.data.cast<float>();
 	C = C_kdl.data.cast<float>();
 	G = G_kdl.data.cast<float>();
+	*/
 	jnt_to_jac_solver->JntToJac(jointStates_KDL.q, jac_kdl,
 			activeChain_KDL.getNrOfSegments());
 	jnt_to_jacDot_solver->JntToJacDot(jointStates_KDL, jacd_kdl,
@@ -175,6 +176,11 @@ void ChainBase::calculateKinematicsDynamics(
 			activeChain_KDL.getNrOfSegments());
 	jac = jac_kdl.data.cast<float>();
 	jacd = jacd_kdl.data.cast<float>();
+	
+	model_cf.calc_inertia_matrix(M_cf_array,jointStates_KDL.q.data.data());
+	M_cf=Eigen::Map<Eigen::MatrixXd>(*M_cf_array,7,7).cast<float>();
+	model_cf.calc_coriolis_matrix(C_cf_array,jointStates_KDL.q.data.data(),jointStates_KDL.qdot.data.data());
+        C_cf=(Eigen::Map<Eigen::MatrixXd>(*C_cf_array,7,7)*jointStates_KDL.qdot.data).cast<float>();
 
 }
 std::string ChainBase::getName() {

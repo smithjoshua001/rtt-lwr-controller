@@ -101,6 +101,8 @@ include_directories(
 orocos_component(${CMAKE_PROJECT_NAME}
                                         ${PROJECT_SOURCE_DIR}/KDLParser.hpp
                                         ${PROJECT_SOURCE_DIR}/KDLParser.cpp
+                                        ${PROJECT_SOURCE_DIR}/kukaLWRModel.h
+                                        ${PROJECT_SOURCE_DIR}/kukaLWRModel.cpp
                                         ${PROJECT_SOURCE_DIR}/controller-contained/ControllerContained.hpp
                                         ${PROJECT_SOURCE_DIR}/controller-contained/ControllerContained.cpp
                                         ${PROJECT_SOURCE_DIR}/kinematic-chain/ChainBase.h

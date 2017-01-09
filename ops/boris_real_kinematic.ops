@@ -1,0 +1,90 @@
+import("eigen_typekit")
+import("kdl_typekit")
+import("rst-rt_typekit")
+
+import("rtt-lwr-hardware-integration") 
+import("LWRControllerContained")
+require("os")
+
+var int DOFsize = 7;
+var string path_model_urdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.urdf"
+var string path_model_srdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.srdf"
+
+loadComponent("lwr_robot","cogimon::lwr_robot")
+setActivity("lwr_robot",0.003,12,ORO_SCHED_RT)
+lwr_robot.loadURDFAndSRDF(path_model_urdf,path_model_srdf)
+lwr_robot.configure()
+
+
+loadComponent("right_controller", "KTSController")
+setActivity("right_controller",0.001,11,ORO_SCHED_RT)
+right_controller.setBaseAndTip("krc_base","right_lwr_tool_link")
+#controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
+right_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+right_controller.configure()
+
+loadComponent("left_controller", "KTSController")
+setActivity("left_controller",0.001,10,ORO_SCHED_RT)
+left_controller.setBaseAndTip("krc_base","left_lwr_tool_link")
+#controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
+left_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+left_controller.configure()
+
+
+# connect all auxiliaries
+var ConnPolicy cp_aux;
+connect("lwr_robot.right_full_arm_JointFeedback", "right_controller.RobotIn", cp_aux)
+connect("lwr_robot.right_full_arm_output_M", "right_controller.in_M", cp_aux)
+connect("right_controller.ja_out","lwr_robot.right_full_arm_JointPositionCtrl",cp_aux)
+connect("right_controller.jt_out","lwr_robot.right_full_arm_JointTorqueCtrl",cp_aux)
+
+var ConnPolicy left_cp_aux;
+connect("lwr_robot.left_full_arm_JointFeedback", "left_controller.RobotIn", left_cp_aux)
+connect("lwr_robot.left_full_arm_output_M", "left_controller.in_M", left_cp_aux)
+connect("left_controller.ja_out","lwr_robot.left_full_arm_JointPositionCtrl",left_cp_aux)
+connect("left_controller.jt_out","lwr_robot.left_full_arm_JointTorqueCtrl",left_cp_aux)
+
+
+lwr_robot.setControlMode("right_full_arm", "JointTorqueCtrl")
+
+lwr_robot.setControlMode("left_full_arm", "JointTorqueCtrl")
+
+right_controller.setPos(0.4,-0.30,0.3)
+right_controller.setStepSize(0.01)
+#controller.quat_x=-0.279594
+#controller.quat_y=0.654638
+#controller.quat_z=-0.642224
+#controller.quat_w=-0.284297
+#controller.K=100
+#controller.D=5
+#controller.quat_x=0
+#controller.quat_y=1
+#controller.quat_z=0
+#controller.quat_w=0
+right_controller.quat_x=1
+right_controller.quat_y=0
+right_controller.quat_z=0
+right_controller.quat_w=0
+right_controller.Kp=50
+right_controller.Dp=10
+right_controller.Ko=50
+right_controller.Do=1
+
+left_controller.setPos(0.4,0.30,0.3)
+left_controller.setStepSize(0.01)
+left_controller.quat_x=0
+left_controller.quat_y=1
+left_controller.quat_z=0
+left_controller.quat_w=0
+left_controller.Kp=50
+left_controller.Dp=10
+left_controller.Ko=50
+left_controller.Do=1
+
+right_controller.start()
+left_controller.start()
+lwr_robot.start()
+
+
+
+

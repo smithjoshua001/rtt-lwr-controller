@@ -74,6 +74,7 @@ bool KTSController::startHook() {
 			&& in_M_port.connected());
 }
 void KTSController::updateHook() {
+	
 	robot_state_flow = robot_state_port.read(robot_state);
 	if (robot_state_flow != RTT::NewData) {
 		return;
@@ -82,10 +83,10 @@ void KTSController::updateHook() {
 	if (in_M_flow != RTT::NewData) {
 		return;
 	}
-
+	RTT::log(RTT::Info) <<name<<" Start" << RTT::endlog();
 //	calculateKinematics(robot_state);
 	calculateKinematicsDynamics(robot_state);
-	RTT::log(RTT::Info) << cart_pos.p << RTT::endlog();
+	//RTT::log(RTT::Info) << cart_pos.p << RTT::endlog();
 	Eigen::VectorXd quat_temp(4);
 	cart_pos.M.GetQuaternion(quat_temp(0), quat_temp(1), quat_temp(2),
 			quat_temp(3));
@@ -100,9 +101,9 @@ void KTSController::updateHook() {
 	rot_mat_curr(2, 1) = cart_pos.M.data[7];
 	rot_mat_curr(2, 2) = cart_pos.M.data[8];
 	Eigen::Quaternionf eigen_quat(rot_mat_curr);
-	RTT::log(RTT::Info) << eigen_quat.vec() << ", " << quat_temp
-			<< "\nCOMPARISON TEST" << RTT::endlog();
-//	RTT::log(RTT::Info)<<eigen_quat(0)-quat_temp(0)<<","<<eigen_quat(1)-quat_temp(1)<<", "<<eigen_quat(2)-quat_temp(2)<<", "<<eigen_quat(3)-quat_temp(3)<<"\n QUATERNION ERROR"<<RTT::endlog();
+	//RTT::log(RTT::Info) << eigen_quat.vec() << ", " << quat_temp
+			//<< "\nCOMPARISON TEST" << RTT::endlog();
+//	//RTT::log(RTT::Info)<<eigen_quat(0)-quat_temp(0)<<","<<eigen_quat(1)-quat_temp(1)<<", "<<eigen_quat(2)-quat_temp(2)<<", "<<eigen_quat(3)-quat_temp(3)<<"\n QUATERNION ERROR"<<RTT::endlog();
 
 	Eigen::VectorXf quat = quat_temp.cast<float>();
 	quat_d.normalize();
@@ -116,14 +117,14 @@ void KTSController::updateHook() {
 	quat_skew(0, 2) = quat_d(1);
 	quat_skew(0, 1) = -quat_d(2);
 	quat_skew(1, 0) = quat_d(2);
-	RTT::log(RTT::Info) << quat_skew << "\n :QUAT SKEW MATRIX" << RTT::endlog();
+	//RTT::log(RTT::Info) << quat_skew << "\n :QUAT SKEW MATRIX" << RTT::endlog();
 //	quat_skew.transposeInPlace();
 
 	Eigen::VectorXf delta_quat(3);
 	delta_quat = (quat_d(3) * quat.head<3>()) - (quat(3) * quat_d.head<3>())
 			- (quat_skew * quat.head<3>());
 
-	//RTT::log(RTT::Info)<<pos<<RTT::endlog();
+	////RTT::log(RTT::Info)<<pos<<RTT::endlog();
 	Eigen::VectorXf posError(6);
 	posError[0] = pos[0] - cart_pos.p.data[0];
 	posError[1] = pos[1] - cart_pos.p.data[1];
@@ -162,22 +163,22 @@ void KTSController::updateHook() {
 	Eigen::Quaternionf relative_quat(relative_rot);
 	delta_quat = relative_quat.vec().cast<float>();
 
-	RTT::log(RTT::Info) << rot_mat << RTT::endlog();
-	RTT::log(RTT::Info) << -rot_mat * delta_quat << ":delta_quat"
-			<< RTT::endlog();
+	//RTT::log(RTT::Info) << rot_mat << RTT::endlog();
+	//RTT::log(RTT::Info) << -rot_mat * delta_quat << ":delta_quat"
+			//<< RTT::endlog();
 
 	posError.tail<3>() = -rot_mat * delta_quat;
-//	RTT::log(RTT::Info) << "POSERROR: " << posError << RTT::endlog();
+//	//RTT::log(RTT::Info) << "POSERROR: " << posError << RTT::endlog();
 	//if (posError.head<3>().norm() > step_size) {
 //		posError.head<3>() /= (posError.head<3>().norm() / (float) step_size);
 //	}
 
 //	Eigen::MatrixXf jacResize(3, jac.cols());
 //	jacResize = jac.block(0, 0, 3, jac.cols());
-//RTT::log(RTT::Info)<<jacResize<<RTT::endlog();
+////RTT::log(RTT::Info)<<jacResize<<RTT::endlog();
 
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver(in_M.rows(), in_M.cols());
-	svd_solver.compute(in_M, Eigen::ComputeFullU | Eigen::ComputeFullV);
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver(M_cf.rows(), M_cf.cols());
+	svd_solver.compute(M_cf, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
 	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values =
 			svd_solver.singularValues();
@@ -194,9 +195,9 @@ void KTSController::updateHook() {
 			* svd_solver.matrixU().leftCols(singular_values.size()).transpose();
 //	out_angles_var.angles = robot_state.angles;	//+jacPinv*posError;// (jacResize.transpose()*(jacResize*jacResize.transpose()).inverse())*posError;
 //	out_angles_var.angles[5] += 0.2 * 0.005;
-	//RTT::log(RTT::Info)<<out_angles_var.angles<<RTT::endlog();
+	////RTT::log(RTT::Info)<<out_angles_var.angles<<RTT::endlog();
 	//out_angles_port.write(out_angles_var);
-//	RTT::log(RTT::Info)
+//	//RTT::log(RTT::Info)
 //			<< (jac.transpose()
 //					* (jac * jac.transpose()).inverse()) * posError
 //			<< ": JOINTPOS ERROR" << RTT::endlog();
@@ -205,7 +206,7 @@ void KTSController::updateHook() {
 //			- D * (robot_state.velocities);
 	//out_torques_var.torques.setZero();
 
-//	RTT::log(RTT::Info) << out_torques_var.torques << RTT::endlog();
+//	//RTT::log(RTT::Info) << out_torques_var.torques << RTT::endlog();
 	posError.head<3>() *= Kp;
 	posError.tail<3>() *= Ko;
 
@@ -242,13 +243,17 @@ void KTSController::updateHook() {
 			* svd_solver2.matrixU().leftCols(singular_values2.size()).transpose();
 
 	out_torques_var.torques = jac.transpose()
-			* (jmjt * (xdd - jacd * robot_state.velocities))
+			* ((jmjt * (xdd - jacd * robot_state.velocities))+jmjt*jac*in_M_Pinv*C_cf)
 			;//+ (robot_state.velocities.cwiseProduct(damping));
 
-	RTT::log(RTT::Info) << quat_temp <<": QUATERNION VALUE" << RTT::endlog();
-	RTT::log(RTT::Info) << in_M<<":\n"<<M <<": IN_M VALUE" << RTT::endlog();
+	//RTT::log(RTT::Info) << quat_temp <<": QUATERNION VALUE" << RTT::endlog();
+	//RTT::log(RTT::Info) << in_M<<":\n"<<M <<": IN_M VALUE" << RTT::endlog();
+	//RTT::log(RTT::Info) << M_cf<<": M_cf VALUE" << RTT::endlog();
+	//RTT::log(RTT::Info) << C_cf<<": C_cf VALUE" << RTT::endlog();
+		
 	//out_torques_var.torques.setZero();
 	out_torques_port.write(out_torques_var);
+	RTT::log(RTT::Info) <<name<<" Stop" << RTT::endlog();
 
 }
 void KTSController::stopHook() {
@@ -259,7 +264,7 @@ void KTSController::cleanupHook() {
 }
 
 void KTSController::setPos(float x, float y, float z) {
-	std::cout << "SETTING POS" << x << ", " << y << ", " << z << "\n";
+	//RTT::log(RTT::Info) << "SETTING POS" << x << ", " << y << ", " << z << "\n";
 	pos[0] = x;
 	pos[1] = y;
 	pos[2] = z;

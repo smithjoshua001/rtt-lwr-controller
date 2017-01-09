@@ -30,6 +30,7 @@
 #include <kdl/chainfksolver.hpp>
 #include "../KDLParser.hpp"
 #include <string>
+#include "../kukaLWRModel.h"
 
 
 class ChainBase {
@@ -55,8 +56,8 @@ public:
 	KDL::Vector gravity_vector;
 	boost::shared_ptr<KDL::ChainDynParam> id_solver;
 	KDL::JntArrayVel jointStates_KDL;
-	Eigen::VectorXf G, C;
-	Eigen::MatrixXf M, jac, jacd;
+	Eigen::VectorXf G, C, G_cf, C_cf;
+	Eigen::MatrixXf M, jac, jacd, M_cf;
 	KDL::JntArray G_kdl, C_kdl;
 	KDL::JntSpaceInertiaMatrix M_kdl;
 	KDL::Frame cart_pos;
@@ -70,6 +71,9 @@ public:
 	boost::shared_ptr<KDL::ChainJntToJacDotSolver> jnt_to_jacDot_solver;
 	boost::shared_ptr<KDL::ChainFkSolverPos_recursive> jnt_to_cart_pos_solver;
 	boost::shared_ptr<KDL::ChainFkSolverVel_recursive> jnt_to_cart_vel_solver;
+	kukaLWRModel model_cf;
+	double M_cf_array[7][7], C_cf_array[7][7];
+	
 };
 
 #endif /* KINEMATIC_CHAIN_CHAINBASE_H_ */
