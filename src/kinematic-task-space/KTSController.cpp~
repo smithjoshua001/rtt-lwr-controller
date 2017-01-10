@@ -202,7 +202,6 @@ void KTSController::updateHook() {
 	Eigen::Matrix3f relative_rot = rot_mat.transpose() * rot_mat_curr;
 	Eigen::Quaternionf relative_quat(relative_rot);
 	delta_quat = relative_quat.vec().cast<float>();
-	posError.tail<3>() = -rot_mat * delta_quat;
 	}
 
 //	//RTT::log(RTT::Info) << "POSERROR: " << posError << RTT::endlog();

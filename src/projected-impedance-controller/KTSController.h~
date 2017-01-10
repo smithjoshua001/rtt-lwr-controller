@@ -59,8 +59,8 @@ public:
 	RTT::FlowStatus in_xd_des_flow;
 
 	Eigen::Matrix<float,7,7> in_M;
-	Eigen::VectorXf in_x_des;
-	Eigen::VectorXf in_xd_des;
+	Eigen::VectorXd in_x_des;
+	Eigen::VectorXd in_xd_des;
 //	RTT::InputPort<rstrt::robot::JointState> in_robotstatus_port;
 
 	// Declare output ports and their datatypes

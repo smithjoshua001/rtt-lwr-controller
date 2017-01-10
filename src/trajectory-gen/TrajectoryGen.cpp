@@ -58,14 +58,14 @@ TrajectoryGen::TrajectoryGen(std::string const & name) : RTT::TaskContext(name),
     BoardRot(2,0) = -sin(boardAngle_rad);
     BoardRot(2,2) = cos(boardAngle_rad);
 
-    BoardTransl(0) = -0.55;
-    BoardTransl(1) = 0;
-    BoardTransl(2) = 0.5;
+    BoardTransl(0) = 0.40;
+    BoardTransl(1) = 0.3;
+    BoardTransl(2) = 0.3;
 
     TipOrientation(0) = 0;
     TipOrientation(1) = -M_PI - boardAngle_rad;
     TipOrientation(2) = 0;
-    radius = 0.15;
+    radius = 0.1;
 }
 
 void TrajectoryGen::setTranslationOnly(const bool translationOnly) {
@@ -109,16 +109,16 @@ void TrajectoryGen::updateHook() {
     }
 //    std::cout<<out_desiredTaskSpaceAcceleration_var<<"\n------------------\n";
 
-//    out_desiredTaskSpacePosition_port.write(out_desiredTaskSpacePosition_var);
-//    out_desiredTaskSpaceVelocity_port.write(out_desiredTaskSpaceVelocity_var);
+    out_desiredTaskSpacePosition_port.write(out_desiredTaskSpacePosition_var);
+    out_desiredTaskSpaceVelocity_port.write(out_desiredTaskSpaceVelocity_var);
 //    out_desiredTaskSpaceAcceleration_port.write(out_desiredTaskSpaceAcceleration_var);
-    Eigen::VectorXf zero_vec;
-        zero_vec.resize(6);
-        zero_vec<<BoardTransl,0,0,0;
-    out_desiredTaskSpacePosition_port.write(zero_vec);
-    	zero_vec.setZero();
-        out_desiredTaskSpaceVelocity_port.write(zero_vec);
-        out_desiredTaskSpaceAcceleration_port.write(zero_vec);
+    //Eigen::VectorXf zero_vec;
+    //    zero_vec.resize(6);
+    //    zero_vec<<BoardTransl,0,0,0;
+    //out_desiredTaskSpacePosition_port.write(zero_vec);
+    //	zero_vec.setZero();
+    //    out_desiredTaskSpaceVelocity_port.write(zero_vec);
+     //   out_desiredTaskSpaceAcceleration_port.write(zero_vec);
 }
 
 void TrajectoryGen::stopHook() {

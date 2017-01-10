@@ -11,7 +11,7 @@ var string path_model_urdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.urd
 var string path_model_srdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.srdf"
 
 loadComponent("lwr_robot","cogimon::lwr_robot")
-setActivity("lwr_robot",0.003,12,ORO_SCHED_RT)
+setActivity("lwr_robot",0.003,13,ORO_SCHED_RT)
 lwr_robot.loadURDFAndSRDF(path_model_urdf,path_model_srdf)
 lwr_robot.configure()
 
@@ -30,6 +30,24 @@ left_controller.setBaseAndTip("krc_base","left_lwr_tool_link")
 left_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
 left_controller.configure()
 
+# load TrajectoryGenerator
+loadComponent("trajectorygenerator", "TrajectoryGen")
+setActivity("trajectorygenerator",0.004,12,ORO_SCHED_RT)
+trajectorygenerator.setTranslationOnly(false);
+trajectorygenerator.setCenter(0.55,0.3,0.3)
+trajectorygenerator.radius = 0.1
+trajectorygenerator.preparePorts()
+trajectorygenerator.configure()
+
+# load TrajectoryGenerator
+loadComponent("trajectorygenerator_right", "TrajectoryGen")
+setActivity("trajectorygenerator_right",0.004,12,ORO_SCHED_RT)
+trajectorygenerator_right.setTranslationOnly(false);
+trajectorygenerator_right.setCenter(0.55,-0.3,0.3)
+trajectorygenerator_right.radius = 0.1
+trajectorygenerator_right.preparePorts()
+trajectorygenerator_right.configure()
+
 
 # connect all auxiliaries
 var ConnPolicy cp_aux;
@@ -44,9 +62,18 @@ connect("lwr_robot.left_full_arm_output_M", "left_controller.in_M", left_cp_aux)
 connect("left_controller.ja_out","lwr_robot.left_full_arm_JointPositionCtrl",left_cp_aux)
 connect("left_controller.jt_out","lwr_robot.left_full_arm_JointTorqueCtrl",left_cp_aux)
 
+# connect TrajectoryGenerator to PositionController
+var ConnPolicy cp_traj_posCtrl;
+connect("trajectorygenerator.out_desiredTaskSpacePosition_port", "left_controller.in_x_des", cp_traj_posCtrl)
+connect("trajectorygenerator.out_desiredTaskSpaceVelocity_port", "left_controller.in_xd_des", cp_traj_posCtrl)
 
+connect("trajectorygenerator_right.out_desiredTaskSpacePosition_port", "right_controller.in_x_des", cp_traj_posCtrl)
+connect("trajectorygenerator_right.out_desiredTaskSpaceVelocity_port", "right_controller.in_xd_des", cp_traj_posCtrl)
+#connect("trajectorygenerator.out_desiredTaskSpaceAcceleration_port", "positioncontroller.in_desiredTaskSpaceAcceleration_port", cp_traj_posCtrl)
+
+
+#setting the control mode
 lwr_robot.setControlMode("right_full_arm", "JointTorqueCtrl")
-
 lwr_robot.setControlMode("left_full_arm", "JointTorqueCtrl")
 
 right_controller.setPos(0.4,-0.30,0.3)
@@ -78,9 +105,12 @@ left_controller.quat_z=0
 left_controller.quat_w=0
 left_controller.Kp=50
 left_controller.Dp=10
-left_controller.Ko=50
+left_controller.Ko=100
 left_controller.Do=1
 
+#controller
+trajectorygenerator.start()
+trajectorygenerator_right.start()
 right_controller.start()
 left_controller.start()
 lwr_robot.start()
