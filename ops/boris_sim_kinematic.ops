@@ -49,7 +49,7 @@ desJointAngles_start.angles[13] = 0
 
 gazebo.setInitialConfigurationForModel("kuka-lwr", desJointAngles_start);
 
-loadComponent("controller", "KTSController")
+loadComponent("controller", "PICController")
 setActivity("controller",0.1,10,ORO_SCHED_OTHER)
 controller.setBaseAndTip("krc_base","left_lwr_tool_link")
 #controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
@@ -74,10 +74,10 @@ controller.quat_x=0
 controller.quat_y=1
 controller.quat_z=0
 controller.quat_w=0
-controller.Kp=50
-controller.Dp=3
-controller.Ko=200
-controller.Do=2
+controller.Kp=200
+controller.Dp=1
+controller.Ko=0
+controller.Do=0
 
 controller.setPos(0.3,0.3,1.2)
 controller.setStepSize(0.5)

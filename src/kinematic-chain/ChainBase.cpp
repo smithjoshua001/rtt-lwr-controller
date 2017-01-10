@@ -158,13 +158,12 @@ void ChainBase::calculateKinematicsDynamics(
 		const rstrt::robot::JointState& jointState) {
 	jointStates_KDL.q.data = jointState.angles.cast<double>();
 	jointStates_KDL.qdot.data = jointState.velocities.cast<double>();
-	/*id_solver->JntToGravity(jointStates_KDL.q, G_kdl);
+	id_solver->JntToGravity(jointStates_KDL.q, G_kdl);
 	id_solver->JntToCoriolis(jointStates_KDL.q, jointStates_KDL.qdot, C_kdl);
 	id_solver->JntToMass(jointStates_KDL.q, M_kdl);
 	M = M_kdl.data.cast<float>();
 	C = C_kdl.data.cast<float>();
 	G = G_kdl.data.cast<float>();
-	*/
 	jnt_to_jac_solver->JntToJac(jointStates_KDL.q, jac_kdl,
 			activeChain_KDL.getNrOfSegments());
 	jnt_to_jacDot_solver->JntToJacDot(jointStates_KDL, jacd_kdl,

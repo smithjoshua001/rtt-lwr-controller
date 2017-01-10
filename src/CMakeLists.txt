@@ -109,6 +109,8 @@ orocos_component(${CMAKE_PROJECT_NAME}
                                         ${PROJECT_SOURCE_DIR}/kinematic-chain/ChainBase.cpp
                                         ${PROJECT_SOURCE_DIR}/kinematic-task-space/KTSController.h
                                         ${PROJECT_SOURCE_DIR}/kinematic-task-space/KTSController.cpp
+                                        ${PROJECT_SOURCE_DIR}/projected-impedance-controller/PICController.h
+                                        ${PROJECT_SOURCE_DIR}/projected-impedance-controller/PICController.cpp
                                         ${PROJECT_SOURCE_DIR}/joint-position-ctrl/JointPositionCtrl.hpp
                                         ${PROJECT_SOURCE_DIR}/joint-position-ctrl/JointPositionCtrl.cpp
                                         ${PROJECT_SOURCE_DIR}/torque-transition/TorqueTransition.hpp

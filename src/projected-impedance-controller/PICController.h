@@ -6,8 +6,8 @@
  */
 
 #pragma once
-#ifndef KINEMATIC_TASK_SPACE_KTSCONTROLLER_H_
-#define KINEMATIC_TASK_SPACE_KTSCONTROLLER_H_
+#ifndef PICCONTROLLER_H_
+#define PICCONTROLLER_H_
 
 #include <rtt/TaskContext.hpp>
 #include <rst-rt/kinematics/JointAngles.hpp>
@@ -25,10 +25,10 @@
 #include "../kinematic-chain/ChainBase.h"
 #include <Eigen/src/Core/DenseBase.h>
 
-class KTSController: public RTT::TaskContext, public ChainBase {
+class PICController: public RTT::TaskContext, public ChainBase {
 public:
-	KTSController(std::string const & name);
-	virtual ~KTSController();
+	PICController(std::string const & name);
+	virtual ~PICController();
 
 	bool configureHook();
 	bool startHook();
@@ -41,13 +41,6 @@ public:
 		this->step_size = step_size;
 	}
 
-//	void setDOFSize(unsigned int DOFsize);
-//
-//	void setBaseAndTip(std::string base, std::string tip);
-//
-//	bool selectKinematicChain(const std::string& chainName);
-//	bool loadURDFAndSRDF(const std::string &URDF_path,
-//			const std::string &SRDF_path);
 
 	// Declare input ports and their datatypes
 	RTT::InputPort<Eigen::Matrix<float,7,7>> in_M_port;
@@ -61,32 +54,30 @@ public:
 	Eigen::Matrix<float,7,7> in_M;
 	Eigen::VectorXf in_x_des;
 	Eigen::VectorXf in_xd_des;
-//	RTT::InputPort<rstrt::robot::JointState> in_robotstatus_port;
+
+	Eigen::Matrix<float,6,7> jac_c;
+	Eigen::Matrix<float,7,7> P;
+	Eigen::Matrix<float,7,7> Pd;
+	Eigen::Matrix<float,7,7> M_c,N;
+	Eigen::Matrix<float,6,7> jac_x;
+	Eigen::Matrix<float,6,7> jacd_x;
+	Eigen::Matrix<float,6,6> lambda_c,lambda_d;
+	Eigen::Matrix<float,6,1> h_c;
+	Eigen::Matrix<float,6,1> F,F_x;
+	Eigen::Matrix<float,6,1> xdd_des;
+	Eigen::Matrix<float,7,1> tau_0,tau_c;
 
 	// Declare output ports and their datatypes
 	RTT::OutputPort<rstrt::kinematics::JointAngles> out_angles_port;
 	RTT::OutputPort<rstrt::dynamics::JointTorques> out_torques_port;
 
-//	rstrt::robot::JointState in_robotstatus_var;
 	rstrt::kinematics::JointAngles out_angles_var;
 	rstrt::dynamics::JointTorques out_torques_var;
 	Eigen::Vector3f pos;
 	float step_size;
 	Eigen::VectorXf quat_d;
 	float Kp,Dp,Ko,Do;
-//	RTT::FlowStatus robot_state_flow;
-//	unsigned int DOFsize;
-//	boost::shared_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver;
-//	boost::shared_ptr<KDL::ChainFkSolverPos_recursive> jnt_to_cart_pos_solver;
-
-//	bool _models_loaded;
-//	XBot::XBotCoreModel xbot_model;
-//	std::string xml_model, activeChain, base_name, tip_name;
-//	KDLParser p;
-//	KDL::Tree robot_tree;
-//	KDL::Chain activeChain_KDL;
-//	KDL::JntArrayVel jointStates_KDL;
 
 };
 
-#endif /* KINEMATIC_TASK_SPACE_KTSCONTROLLER_H_ */
+#endif /* PICCONTROLLER_H_ */
