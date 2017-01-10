@@ -16,14 +16,14 @@ lwr_robot.loadURDFAndSRDF(path_model_urdf,path_model_srdf)
 lwr_robot.configure()
 
 
-loadComponent("right_controller", "KTSController")
-setActivity("right_controller",0.001,11,ORO_SCHED_RT)
-right_controller.setBaseAndTip("krc_base","right_lwr_tool_link")
+#loadComponent("right_controller", "KTSController")
+#setActivity("right_controller",0.001,11,ORO_SCHED_RT)
+#right_controller.setBaseAndTip("krc_base","right_lwr_tool_link")
 #controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
-right_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
-right_controller.configure()
+#right_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+#right_controller.configure()
 
-loadComponent("left_controller", "KTSController")
+loadComponent("left_controller", "PICController")
 setActivity("left_controller",0.001,10,ORO_SCHED_RT)
 left_controller.setBaseAndTip("krc_base","left_lwr_tool_link")
 #controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
@@ -31,30 +31,30 @@ left_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
 left_controller.configure()
 
 # load TrajectoryGenerator
-loadComponent("trajectorygenerator", "TrajectoryGen")
-setActivity("trajectorygenerator",0.004,12,ORO_SCHED_RT)
-trajectorygenerator.setTranslationOnly(false);
-trajectorygenerator.setCenter(0.55,0.3,0.3)
-trajectorygenerator.radius = 0.1
-trajectorygenerator.preparePorts()
-trajectorygenerator.configure()
+#loadComponent("trajectorygenerator", "TrajectoryGen")
+#setActivity("trajectorygenerator",0.004,12,ORO_SCHED_RT)
+#trajectorygenerator.setTranslationOnly(false);
+#trajectorygenerator.setCenter(0.55,0.3,0.3)
+#trajectorygenerator.radius = 0.1
+#trajectorygenerator.preparePorts()
+#trajectorygenerator.configure()
 
 # load TrajectoryGenerator
-loadComponent("trajectorygenerator_right", "TrajectoryGen")
-setActivity("trajectorygenerator_right",0.004,12,ORO_SCHED_RT)
-trajectorygenerator_right.setTranslationOnly(false);
-trajectorygenerator_right.setCenter(0.55,-0.3,0.3)
-trajectorygenerator_right.radius = 0.1
-trajectorygenerator_right.preparePorts()
-trajectorygenerator_right.configure()
+#loadComponent("trajectorygenerator_right", "TrajectoryGen")
+#setActivity("trajectorygenerator_right",0.004,12,ORO_SCHED_RT)
+#trajectorygenerator_right.setTranslationOnly(false);
+#trajectorygenerator_right.setCenter(0.55,-0.3,0.3)
+#trajectorygenerator_right.radius = 0.1
+#trajectorygenerator_right.preparePorts()
+#trajectorygenerator_right.configure()
 
 
 # connect all auxiliaries
-var ConnPolicy cp_aux;
-connect("lwr_robot.right_full_arm_JointFeedback", "right_controller.RobotIn", cp_aux)
-connect("lwr_robot.right_full_arm_output_M", "right_controller.in_M", cp_aux)
-connect("right_controller.ja_out","lwr_robot.right_full_arm_JointPositionCtrl",cp_aux)
-connect("right_controller.jt_out","lwr_robot.right_full_arm_JointTorqueCtrl",cp_aux)
+#var ConnPolicy cp_aux;
+#connect("lwr_robot.right_full_arm_JointFeedback", "right_controller.RobotIn", cp_aux)
+#connect("lwr_robot.right_full_arm_output_M", "right_controller.in_M", cp_aux)
+#connect("right_controller.ja_out","lwr_robot.right_full_arm_JointPositionCtrl",cp_aux)
+#connect("right_controller.jt_out","lwr_robot.right_full_arm_JointTorqueCtrl",cp_aux)
 
 var ConnPolicy left_cp_aux;
 connect("lwr_robot.left_full_arm_JointFeedback", "left_controller.RobotIn", left_cp_aux)
@@ -63,21 +63,21 @@ connect("left_controller.ja_out","lwr_robot.left_full_arm_JointPositionCtrl",lef
 connect("left_controller.jt_out","lwr_robot.left_full_arm_JointTorqueCtrl",left_cp_aux)
 
 # connect TrajectoryGenerator to PositionController
-var ConnPolicy cp_traj_posCtrl;
-connect("trajectorygenerator.out_desiredTaskSpacePosition_port", "left_controller.in_x_des", cp_traj_posCtrl)
-connect("trajectorygenerator.out_desiredTaskSpaceVelocity_port", "left_controller.in_xd_des", cp_traj_posCtrl)
+#var ConnPolicy cp_traj_posCtrl;
+#connect("trajectorygenerator.out_desiredTaskSpacePosition_port", "left_controller.in_x_des", cp_traj_posCtrl)
+#connect("trajectorygenerator.out_desiredTaskSpaceVelocity_port", "left_controller.in_xd_des", cp_traj_posCtrl)
 
-connect("trajectorygenerator_right.out_desiredTaskSpacePosition_port", "right_controller.in_x_des", cp_traj_posCtrl)
-connect("trajectorygenerator_right.out_desiredTaskSpaceVelocity_port", "right_controller.in_xd_des", cp_traj_posCtrl)
+#connect("trajectorygenerator_right.out_desiredTaskSpacePosition_port", "right_controller.in_x_des", cp_traj_posCtrl)
+#connect("trajectorygenerator_right.out_desiredTaskSpaceVelocity_port", "right_controller.in_xd_des", cp_traj_posCtrl)
 #connect("trajectorygenerator.out_desiredTaskSpaceAcceleration_port", "positioncontroller.in_desiredTaskSpaceAcceleration_port", cp_traj_posCtrl)
 
 
 #setting the control mode
-lwr_robot.setControlMode("right_full_arm", "JointTorqueCtrl")
+#lwr_robot.setControlMode("right_full_arm", "JointTorqueCtrl")
 lwr_robot.setControlMode("left_full_arm", "JointTorqueCtrl")
 
-right_controller.setPos(0.4,-0.30,0.3)
-right_controller.setStepSize(0.01)
+#right_controller.setPos(0.4,-0.30,0.3)
+#right_controller.setStepSize(0.01)
 #controller.quat_x=-0.279594
 #controller.quat_y=0.654638
 #controller.quat_z=-0.642224
@@ -88,14 +88,14 @@ right_controller.setStepSize(0.01)
 #controller.quat_y=1
 #controller.quat_z=0
 #controller.quat_w=0
-right_controller.quat_x=1
-right_controller.quat_y=0
-right_controller.quat_z=0
-right_controller.quat_w=0
-right_controller.Kp=50
-right_controller.Dp=10
-right_controller.Ko=50
-right_controller.Do=1
+#right_controller.quat_x=1
+#right_controller.quat_y=0
+#right_controller.quat_z=0
+#right_controller.quat_w=0
+#right_controller.Kp=50
+#right_controller.Dp=10
+#right_controller.Ko=50
+#right_controller.Do=1
 
 left_controller.setPos(0.4,0.30,0.3)
 left_controller.setStepSize(0.01)
@@ -103,15 +103,15 @@ left_controller.quat_x=0
 left_controller.quat_y=1
 left_controller.quat_z=0
 left_controller.quat_w=0
-left_controller.Kp=50
+left_controller.Kp=100
 left_controller.Dp=10
-left_controller.Ko=100
-left_controller.Do=1
+left_controller.Ko=10
+left_controller.Do=0.1
 
 #controller
-trajectorygenerator.start()
-trajectorygenerator_right.start()
-right_controller.start()
+#trajectorygenerator.start()
+#trajectorygenerator_right.start()
+#right_controller.start()
 left_controller.start()
 lwr_robot.start()
 

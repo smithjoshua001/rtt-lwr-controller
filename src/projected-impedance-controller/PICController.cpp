@@ -328,13 +328,13 @@ void PICController::updateHook() {
 	 */
 	P = Eigen::Matrix<float, 7, 7>::Identity();	//-(jac_c_Pinv*jac_c);
 
-	M_c = (P * M) + Eigen::Matrix<float, 7, 7>::Identity() - P;
+	M_c = (P * M_cf) + Eigen::Matrix<float, 7, 7>::Identity() - P;
 	jac_x = jac;
 	jacd_x = jacd;
 
 	lambda_c = (jac_x * (M_c.inverse()) * P * (jac_x.transpose())).inverse();
 	h_c = (lambda_c * jac_x * M_c.inverse()
-			* ((P * (C)) - (Pd * robot_state.velocities)))
+			* ((P * (C_cf)) - (Pd * robot_state.velocities)))
 			- (lambda_c * jacd_x * robot_state.velocities);
 	lambda_d = lambda_c;
 //	F = h_c + lambda_c * xdd_des - lambda_c*lambda_d.inverse()*(velError+posError)+( lambda_c*lambda_d.inverse() - Eigen::Matrix<float,6,6>::Identity())*F_x;
