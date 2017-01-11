@@ -113,6 +113,8 @@ orocos_component(${CMAKE_PROJECT_NAME}
                                         ${PROJECT_SOURCE_DIR}/projected-impedance-controller/PICController.cpp
                                         ${PROJECT_SOURCE_DIR}/rjpi-controller/RJPIController.h
                                         ${PROJECT_SOURCE_DIR}/rjpi-controller/RJPIController.cpp
+					${PROJECT_SOURCE_DIR}/TorqueCombiner.hpp
+                                        ${PROJECT_SOURCE_DIR}/TorqueCombiner.cpp
                                         ${PROJECT_SOURCE_DIR}/joint-position-ctrl/JointPositionCtrl.hpp
                                         ${PROJECT_SOURCE_DIR}/joint-position-ctrl/JointPositionCtrl.cpp
                                         ${PROJECT_SOURCE_DIR}/torque-transition/TorqueTransition.hpp

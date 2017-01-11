@@ -11,18 +11,20 @@
 TorqueTransition::TorqueTransition(std::string const & name) : RTT::TaskContext(name) {
     //prepare operations
     addOperation("setDOFsizeAndTransitionTime", &TorqueTransition::setDOFsizeAndTransitionTime, this).doc("set DOF size and transition time");
+    addOperation("toggle", &TorqueTransition::toggle, this).doc("toggle output");
     addOperation("printCurrentState", &TorqueTransition::printCurrentState, this).doc("printCurrentState");
-
+    properties()->addProperty("toggle_bool", toggle_bool);
     //other stuff
     startTime = 0;
     portsArePrepared = false;
+    toggle_bool = false;
 }
 
 bool TorqueTransition::configureHook() {
     // intializations and object creations go here. Each component should run this before being able to run
 
     //check conncetion
-
+	RTT::log(RTT::Info)<<"HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<RTT::endlog();
         return true;
 }
 
@@ -56,7 +58,8 @@ void TorqueTransition::updateHook() {
         assert(in_torquesA_var.torques.cols()==1);
 
         //hard jump
-        if (this->getSimulationTime() - startTime < transitionTime){
+        //if (this->getSimulationTime() - startTime < transitionTime){
+        if(!toggle_bool){
             out_torques_var.torques = in_torquesA_var.torques;
         }
         else{
@@ -64,9 +67,7 @@ void TorqueTransition::updateHook() {
         }
     } else if ((in_torquesA_flow == RTT::NoData) || (in_torquesB_flow == RTT::NoData)) {
         out_torques_var.torques.setZero();
-      //  std::cout<<"NODATA\n\n\n";
     } else {
-    	//std::cout<<"ARGH!!!!!!!!!\n\n\n";
         // there should be something really wrong!
     }
 
@@ -131,6 +132,9 @@ void TorqueTransition::printCurrentState(){
     std::cout << " in_torquesB_var " << in_torquesB_var.torques << std::endl;
     std::cout << " out_torques_var " << out_torques_var.torques << std::endl;
     std::cout << "############## TorqueTransition State end " << std::endl;
+}
+void TorqueTransition::toggle(){
+   toggle_bool = !toggle_bool;
 }
 
 //this macro should appear only once per library

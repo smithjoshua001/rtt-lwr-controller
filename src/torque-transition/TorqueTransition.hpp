@@ -25,6 +25,7 @@ public:
     void updateHook();
     void stopHook();
     void cleanupHook();
+    void toggle();
 
     void setDOFsizeAndTransitionTime(unsigned int DOFsize, float transitionTime);
     void preparePorts();
@@ -50,6 +51,6 @@ private:
     unsigned int DOFsize;
     double transitionTime;
     double startTime;
-    bool portsArePrepared;
+    bool portsArePrepared, toggle_bool;
 };
 

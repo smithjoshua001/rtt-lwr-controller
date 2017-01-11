@@ -6,6 +6,7 @@ import("rtt_gazebo_embedded")
 import("rtt-gazebo-robot-sim")
 import("LWRControllerContained")
 
+
 import("cosima-aux-kd")
 
 require("os")
@@ -44,7 +45,7 @@ desJointAngles_start.angles[5] =-1.71339
 desJointAngles_start.angles[6] = 0
 desJointAngles_start.angles[7] =2.5 
 desJointAngles_start.angles[8] =-1.81326
-desJointAngles_start.angles[9] =-1.21934
+desJointAngles_start.angles[9] =1.21934
 desJointAngles_start.angles[10] =1.34302
 desJointAngles_start.angles[11] =2.96706
 desJointAngles_start.angles[12] =-1.71339
@@ -58,6 +59,12 @@ combiner.setDOFsize(14)
 combiner.addChainDOFsize(7)
 combiner.addChainDOFsize(7)
 combiner.preparePorts("")
+loadComponent("s_combiner", "TorqueCombiner")
+setActivity("s_combiner",0.1,10,ORO_SCHED_OTHER)
+s_combiner.setDOFsize(14)
+s_combiner.addChainDOFsize(7)
+s_combiner.addChainDOFsize(7)
+s_combiner.preparePorts("")
 
 loadComponent("seperator", "TorqueCommandSeperator")
 setActivity("seperator",0.1,10,ORO_SCHED_OTHER)
@@ -74,21 +81,54 @@ controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
 controller.loadURDFAndSRDF_dual(path_model_urdf, path_model_srdf)
 controller.configure()
 
+loadComponent("left_controller", "PICController")
+setActivity("left_controller",0.1,10,ORO_SCHED_OTHER)
+left_controller.setBaseAndTip("krc_base","left_lwr_tool_link")
+left_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+left_controller.configure()
+loadComponent("right_controller", "PICController")
+setActivity("right_controller",0.1,10,ORO_SCHED_OTHER)
+right_controller.setBaseAndTip("krc_base","right_lwr_tool_link")
+right_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+right_controller.configure()
+
+loadComponent("left_torqueTransition","TorqueTransition")
+setActivity("left_torqueTransition",0.1,10,ORO_SCHED_OTHER)
+left_torqueTransition.setDOFsizeAndTransitionTime(14,5)
+left_torqueTransition.configure()
+
+
+
 
 
 
 # connect all auxiliaries
 var ConnPolicy cp_aux;
 connect("coman_gazebo.left_full_arm_JointFeedback", "controller.controller_RobotIn", cp_aux)
+connect("coman_gazebo.left_full_arm_JointFeedback", "left_controller.left_controller_RobotIn", cp_aux)
+connect("coman_gazebo.right_full_arm_JointFeedback", "right_controller.right_controller_RobotIn", cp_aux)
 connect("coman_gazebo.left_full_arm_JointFeedback", "combiner.in_robotstatus_port_0",cp_aux)
 connect("coman_gazebo.right_full_arm_JointFeedback", "combiner.in_robotstatus_port_1",cp_aux)
 connect("combiner.out_robotstatus_port", "controller.controller_dual__RobotIn", cp_aux)
 
 #connect("controller.jt_out","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
-connect("controller.jt_out","seperator.in_torques_port",cp_aux)
+#connect("controller.jt_out","seperator.in_torques_port",cp_aux)
+
+
+var ConnPolicy cp_jointposcontroller;
+connect("left_controller.jt_out", "s_combiner.in_robotstatus_port_0", cp_jointposcontroller)
+connect("right_controller.jt_out", "s_combiner.in_robotstatus_port_1", cp_jointposcontroller)
+
+connect("s_combiner.out_robotstatus_port", "left_torqueTransition.in_torquesA_port", cp_jointposcontroller)
+connect("controller.jt_out", "left_torqueTransition.in_torquesB_port", cp_jointposcontroller)
+connect("left_torqueTransition.out_torques_port","seperator.in_torques_port",cp_aux)
+
+
 connect("seperator.out_torques_port_0","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
 connect("seperator.out_torques_port_1","coman_gazebo.right_full_arm_JointTorqueCtrl",cp_aux)
 
+#connect("left_torqueTransition.out_torques_port","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
+#connect("right_torqueTransition.out_torques_port","coman_gazebo.right_full_arm_JointTorqueCtrl",cp_aux)
 
 
 coman_gazebo.setControlMode("left_full_arm", "JointTorqueCtrl")
@@ -111,10 +151,32 @@ controller.Kp=50
 controller.Dp=1
 controller.Ko=5
 controller.Do=1
-controller.Kp_c=30
-controller.Dp_c=1
-controller.Ko_c=0
-controller.Do_c=0
+controller.Kp_c=50
+controller.Dp_c=3
+controller.Ko_c=20
+controller.Do_c=0.1
+
+left_controller.Kp=100
+left_controller.Dp=20
+left_controller.Ko=3
+left_controller.Do=0
+left_controller.quat_x=0.707
+left_controller.quat_y=0
+left_controller.quat_z=0
+left_controller.quat_w=0.707
+left_controller.setPos(0.3,0.1,1)
+
+right_controller.Kp=100
+right_controller.Dp=20
+right_controller.Ko=3
+right_controller.Do=0
+right_controller.quat_x=-0.707
+right_controller.quat_y=0
+right_controller.quat_z=0
+right_controller.quat_w=0.707
+right_controller.setPos(0.3,-0.1,1)
+
+
 
 controller.setPos(0.4,0.4,1)
 controller.setPos_c(0,0,0.2)
@@ -122,6 +184,10 @@ controller.setStepSize(0.5)
 
 combiner.start()
 seperator.start()
+left_controller.start()
+right_controller.start()
+left_torqueTransition.start()
+s_combiner.start()
 controller.start()
 gazebo.stop()
 
