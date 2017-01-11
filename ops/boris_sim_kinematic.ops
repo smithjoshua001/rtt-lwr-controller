@@ -151,9 +151,9 @@ controller.Kp=50
 controller.Dp=1
 controller.Ko=5
 controller.Do=1
-controller.Kp_c=50
-controller.Dp_c=3
-controller.Ko_c=20
+controller.Kp_c=20
+controller.Dp_c=1
+controller.Ko_c=5
 controller.Do_c=0.1
 
 left_controller.Kp=100

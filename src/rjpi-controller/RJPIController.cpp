@@ -369,7 +369,7 @@ void RJPIController::updateHook() {
 					- (lambda_c * jacd_x * dual_arm_chain.robot_state.velocities);
 	lambda_d = lambda_c;
 //	F = h_c + lambda_c * xdd_des - lambda_c*lambda_d.inverse()*(velError+posError)+( lambda_c*lambda_d.inverse() - Eigen::Matrix<float,6,6>::Identity())*F_x;
-	F = h_c + (lambda_c * xdd_des) - lambda_c*(-dual_vel_error.tail<6>() - dual_pos_error.tail<6>());
+	F = h_c + (lambda_c * xdd_des) - (-dual_vel_error.tail<6>() - dual_pos_error.tail<6>());
 	RTT::log(RTT::Info)<<dual_vel_error<<", "<<dual_pos_error<<"\n";
 	N = (Eigen::Matrix<float, 14, 14>::Identity()
 			- (jac_x.transpose() * lambda_c * jac_x * M_c.inverse() * P));
