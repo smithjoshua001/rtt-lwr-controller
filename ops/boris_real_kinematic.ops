@@ -25,7 +25,7 @@ lwr_robot.configure()
 
 loadComponent("left_controller", "PICController")
 setActivity("left_controller",0.001,10,ORO_SCHED_RT)
-left_controller.setBaseAndTip("krc_base","left_lwr_tool_link")
+left_controller.setBaseAndTip("right_lwr_tool_link","left_lwr_tool_link")
 #controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
 left_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
 left_controller.configure()
