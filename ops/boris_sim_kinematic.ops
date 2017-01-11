@@ -5,6 +5,9 @@ import("rst-rt_typekit")
 import("rtt_gazebo_embedded")
 import("rtt-gazebo-robot-sim")
 import("LWRControllerContained")
+
+import("cosima-aux-kd")
+
 require("os")
 
 loadComponent("gazebo","RTTGazeboEmbedded")
@@ -49,39 +52,76 @@ desJointAngles_start.angles[13] = 0
 
 gazebo.setInitialConfigurationForModel("kuka-lwr", desJointAngles_start);
 
-loadComponent("controller", "PICController")
+loadComponent("combiner", "FeedbackCombiner")
+setActivity("combiner",0.1,10,ORO_SCHED_OTHER)
+combiner.setDOFsize(14)
+combiner.addChainDOFsize(7)
+combiner.addChainDOFsize(7)
+combiner.preparePorts("")
+
+loadComponent("seperator", "TorqueCommandSeperator")
+setActivity("seperator",0.1,10,ORO_SCHED_OTHER)
+seperator.setDOFsize(14)
+seperator.addChainDOFsize(7)
+seperator.addChainDOFsize(7)
+seperator.preparePorts("")
+
+loadComponent("controller", "RJPIController")
 setActivity("controller",0.1,10,ORO_SCHED_OTHER)
 controller.setBaseAndTip("krc_base","left_lwr_tool_link")
-#controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
+controller.setBaseAndTip_dual("left_lwr_tool_link","right_lwr_tool_link")
 controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+controller.loadURDFAndSRDF_dual(path_model_urdf, path_model_srdf)
 controller.configure()
+
+
 
 
 # connect all auxiliaries
 var ConnPolicy cp_aux;
-connect("coman_gazebo.left_full_arm_JointFeedback", "controller.RobotIn", cp_aux)
-connect("controller.ja_out","coman_gazebo.left_full_arm_JointPositionCtrl",cp_aux)
-connect("controller.jt_out","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
+connect("coman_gazebo.left_full_arm_JointFeedback", "controller.controller_RobotIn", cp_aux)
+connect("coman_gazebo.left_full_arm_JointFeedback", "combiner.in_robotstatus_port_0",cp_aux)
+connect("coman_gazebo.right_full_arm_JointFeedback", "combiner.in_robotstatus_port_1",cp_aux)
+connect("combiner.out_robotstatus_port", "controller.controller_dual__RobotIn", cp_aux)
+
+#connect("controller.jt_out","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
+connect("controller.jt_out","seperator.in_torques_port",cp_aux)
+connect("seperator.out_torques_port_0","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
+connect("seperator.out_torques_port_1","coman_gazebo.right_full_arm_JointTorqueCtrl",cp_aux)
+
+
 
 coman_gazebo.setControlMode("left_full_arm", "JointTorqueCtrl")
+coman_gazebo.setControlMode("right_full_arm", "JointTorqueCtrl")
 gazebo.toggleDynamicsSimulation(true)
 
 #controller.quat_x=-0.5
 #controller.quat_y=-0.5
 #controller.quat_z=0.5
 #controller.quat_w=0.5
-controller.quat_x=0
-controller.quat_y=1
+controller.quat_x=1
+controller.quat_y=0
 controller.quat_z=0
 controller.quat_w=0
-controller.Kp=200
+controller.quat_x_c=0
+controller.quat_y_c=1
+controller.quat_z_c=0
+controller.quat_w_c=0
+controller.Kp=50
 controller.Dp=1
-controller.Ko=0
-controller.Do=0
+controller.Ko=5
+controller.Do=1
+controller.Kp_c=30
+controller.Dp_c=1
+controller.Ko_c=0
+controller.Do_c=0
 
-controller.setPos(0.3,0.3,1.2)
+controller.setPos(0.4,0.4,1)
+controller.setPos_c(0,0,0.2)
 controller.setStepSize(0.5)
 
+combiner.start()
+seperator.start()
 controller.start()
 gazebo.stop()
 

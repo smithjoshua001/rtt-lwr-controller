@@ -10,7 +10,7 @@
 ChainBase::ChainBase(std::string name) {
 	_models_loaded = false;
 	this->name = name;
-	robot_state_port.setName("RobotIn");
+	robot_state_port.setName(name+"_RobotIn");
 	robot_state_port.doc("Robot Input");
 	robot_state_flow = RTT::NoData;
 
@@ -81,12 +81,12 @@ bool ChainBase::selectKinematicChain(const std::string& chainName) {
 
 	M = Eigen::MatrixXf(DOFsize, DOFsize);
 
-	M_kdl.resize(7);
-	C_kdl.resize(7);
-	G_kdl.resize(7);
+	M_kdl.resize(DOFsize);
+	C_kdl.resize(DOFsize);
+	G_kdl.resize(DOFsize);
 
-	jac_kdl.resize(7);
-	jacd_kdl.resize(7);
+	jac_kdl.resize(DOFsize);
+	jacd_kdl.resize(DOFsize);
 	jac.resize(6, DOFsize);
 	jacd.resize(6, DOFsize);
 	robot_state.angles.resize(DOFsize);
@@ -175,11 +175,12 @@ void ChainBase::calculateKinematicsDynamics(
 			activeChain_KDL.getNrOfSegments());
 	jac = jac_kdl.data.cast<float>();
 	jacd = jacd_kdl.data.cast<float>();
-	
+	if(DOFsize==7){
 	model_cf.calc_inertia_matrix(M_cf_array,jointStates_KDL.q.data.data());
 	M_cf=Eigen::Map<Eigen::MatrixXd>(*M_cf_array,7,7).cast<float>();
 	model_cf.calc_coriolis_matrix(C_cf_array,jointStates_KDL.q.data.data(),jointStates_KDL.qdot.data.data());
-        C_cf=(Eigen::Map<Eigen::MatrixXd>(*C_cf_array,7,7)*jointStates_KDL.qdot.data).cast<float>();
+    C_cf=(Eigen::Map<Eigen::MatrixXd>(*C_cf_array,7,7)*jointStates_KDL.qdot.data).cast<float>();
+	}
 
 }
 std::string ChainBase::getName() {

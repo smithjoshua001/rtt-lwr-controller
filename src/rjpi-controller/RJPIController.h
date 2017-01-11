@@ -37,6 +37,7 @@ public:
 	void cleanupHook();
 
 	void setPos(float x, float y, float z);
+	void setPos_c(float x, float y, float z);
 	void setStepSize(float step_size){
 		this->step_size = step_size;
 	}
@@ -55,17 +56,17 @@ public:
 	Eigen::VectorXf in_x_des;
 	Eigen::VectorXf in_xd_des;
 
-	Eigen::Matrix<float,6,7> jac_c;
-	Eigen::Matrix<float,7,7> P;
-	Eigen::Matrix<float,7,7> Pd;
-	Eigen::Matrix<float,7,7> M_c,N;
-	Eigen::Matrix<float,6,7> jac_x;
-	Eigen::Matrix<float,6,7> jacd_x;
+	Eigen::Matrix<float,6,14> jac_c;
+	Eigen::Matrix<float,14,14> P;
+	Eigen::Matrix<float,14,14> Pd;
+	Eigen::Matrix<float,14,14> M_c,N;
+	Eigen::Matrix<float,6,14> jac_x;
+	Eigen::Matrix<float,6,14> jacd_x;
 	Eigen::Matrix<float,6,6> lambda_c,lambda_d;
 	Eigen::Matrix<float,6,1> h_c;
 	Eigen::Matrix<float,6,1> F,F_x;
 	Eigen::Matrix<float,6,1> xdd_des;
-	Eigen::Matrix<float,7,1> tau_0,tau_c;
+	Eigen::Matrix<float,14,1> tau_0,tau_c;
 
 	// Declare output ports and their datatypes
 	RTT::OutputPort<rstrt::kinematics::JointAngles> out_angles_port;
@@ -73,10 +74,12 @@ public:
 
 	rstrt::kinematics::JointAngles out_angles_var;
 	rstrt::dynamics::JointTorques out_torques_var;
-	Eigen::Vector3f pos;
+	Eigen::Vector3f pos,pos_c;
 	float step_size;
-	Eigen::VectorXf quat_d;
+	Eigen::VectorXf quat_d,quat_c;
 	float Kp,Dp,Ko,Do;
+	float Kp_c,Dp_c,Ko_c,Do_c;
+	ChainBase dual_arm_chain;
 
 };
 
