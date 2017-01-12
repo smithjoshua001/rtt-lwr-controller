@@ -47,27 +47,29 @@ void TorqueTransition::updateHook() {
         // handle the situation
     }
 
-
+    RTT::log(RTT::Info)<<"DEBUG1"<<RTT::endlog();
     // you can handle cases when there is no new data.
-    if ( (in_torquesA_flow == RTT::NewData || in_torquesA_flow == RTT::OldData) &&
-            (in_torquesB_flow == RTT::NewData || in_torquesB_flow == RTT::OldData)) {
-
+    if ( (in_torquesA_flow == RTT::NewData || in_torquesA_flow == RTT::OldData) && !toggle_bool){
+            
+	RTT::log(RTT::Info)<<"DEBUG2"<<RTT::endlog();
         assert(in_torquesA_var.torques.rows()==DOFsize);
         assert(in_torquesA_var.torques.cols()==1);
         assert(in_torquesA_var.torques.rows()==DOFsize);
         assert(in_torquesA_var.torques.cols()==1);
-
+	out_torques_var.torques = in_torquesA_var.torques;
         //hard jump
         //if (this->getSimulationTime() - startTime < transitionTime){
-        if(!toggle_bool){
-            out_torques_var.torques = in_torquesA_var.torques;
-        }
-        else{
-            out_torques_var.torques = in_torquesB_var.torques;
-        }
-    } else if ((in_torquesA_flow == RTT::NoData) || (in_torquesB_flow == RTT::NoData)) {
+       
+    } else if ((in_torquesB_flow == RTT::NewData || in_torquesB_flow == RTT::OldData)&& toggle_bool) {	RTT::log(RTT::Info)<<"DEBUG3"<<RTT::endlog();
+	 out_torques_var.torques = in_torquesB_var.torques;
+    } else if ((in_torquesA_flow == RTT::NoData) &&!toggle_bool) {
+	RTT::log(RTT::Info)<<"DEBUG5"<<RTT::endlog();
         out_torques_var.torques.setZero();
-    } else {
+    } else if ((in_torquesB_flow == RTT::NoData) && toggle_bool){
+	RTT::log(RTT::Info)<<"DEBUG6"<<RTT::endlog();
+	out_torques_var.torques.setZero();
+    }
+    else {
         // there should be something really wrong!
     }
 

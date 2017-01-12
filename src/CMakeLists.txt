@@ -36,7 +36,7 @@ include_directories(${RTT-CORE-EXTENSIONS_INCLUDE_DIRS})
 link_directories(${RTT-CORE-EXTENSIONS_LIBRARY_DIRS})
 
 
-set (Eigen_INCLUDE_DIRS "/usr/include/eigen3")
+set (Eigen_INCLUDE_DIRS "/usr/local/include/eigen3")
 find_package(orocos_kdl REQUIRED)
 link_directories(${orocos_kdl_LIBRARY_DIR} ${orocos_kdl_LIBRARY_DIRS})
 find_package(Boost COMPONENTS thread REQUIRED)
@@ -70,12 +70,14 @@ message(STATUS "TINYXML_LIBRARY_DIR: ${TINYXML_LIBRARY_DIR}")
 message(STATUS "TINYXML_INCLUDE_DIR: ${TINYXML_INCLUDE_DIRS}")
 message(STATUS "TINYXML_LIBRARY: ${TINYXML_LIBRARY}")
 message(STATUS  ${orocos_kdl_LIBRARY_DIR} ${orocos_kdl_LIBRARY_DIRS} )
+message(STATUS "Eigen: ${Eigen_INCLUDE_DIRS}" )
+
 include_directories(
     include
     src
+    ${Eigen_INCLUDE_DIRS}
     ${orocos_kdl_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIR}
-    ${Eigen_INCLUDE_DIRS}
     ${USE_OROCOS_INCLUDE_DIRS}
     ${GAZEBO_INCLUDE_DIRS}
     ${RST-RT_INCLUDE_DIRS}

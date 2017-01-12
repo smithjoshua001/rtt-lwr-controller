@@ -1,7 +1,7 @@
 import("eigen_typekit")
 import("kdl_typekit")
 import("rst-rt_typekit")
-
+import("cosima-aux-kd")
 import("rtt-lwr-hardware-integration") 
 import("LWRControllerContained")
 require("os")
@@ -11,24 +11,39 @@ var string path_model_urdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.urd
 var string path_model_srdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.srdf"
 
 loadComponent("lwr_robot","cogimon::lwr_robot")
-setActivity("lwr_robot",0.003,13,ORO_SCHED_RT)
+setActivityOnCPU("lwr_robot",0.003,18,ORO_SCHED_RT,0)
 lwr_robot.loadURDFAndSRDF(path_model_urdf,path_model_srdf)
 lwr_robot.configure()
 
 
-#loadComponent("right_controller", "KTSController")
-#setActivity("right_controller",0.001,11,ORO_SCHED_RT)
-#right_controller.setBaseAndTip("krc_base","right_lwr_tool_link")
+loadComponent("right_controller", "PICController")
+setActivityOnCPU("right_controller",0.001,2,ORO_SCHED_RT,3)
+right_controller.setBaseAndTip("krc_base","right_lwr_tool_link")
 #controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
-#right_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
-#right_controller.configure()
+right_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+right_controller.configure()
 
 loadComponent("left_controller", "PICController")
-setActivity("left_controller",0.001,10,ORO_SCHED_RT)
-left_controller.setBaseAndTip("right_lwr_tool_link","left_lwr_tool_link")
+setActivityOnCPU("left_controller",0.001,1,ORO_SCHED_RT,3)
+left_controller.setBaseAndTip("krc_base","left_lwr_tool_link")
 #controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
 left_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
 left_controller.configure()
+
+loadComponent("controller", "RJPIController")
+setActivityOnCPU("controller",0.001,3,ORO_SCHED_RT,2)
+controller.setBaseAndTip("krc_base","left_lwr_tool_link")
+controller.setBaseAndTip_dual("left_lwr_tool_link","right_lwr_tool_link")
+controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+controller.loadURDFAndSRDF_dual(path_model_urdf, path_model_srdf)
+controller.configure()
+
+loadComponent("torqueTransition","TorqueTransition")
+setActivityOnCPU("torqueTransition",0.003,17,ORO_SCHED_RT,1)
+torqueTransition.setDOFsizeAndTransitionTime(14,5)
+torqueTransition.configure()
+
+
 
 # load TrajectoryGenerator
 #loadComponent("trajectorygenerator", "TrajectoryGen")
@@ -48,6 +63,25 @@ left_controller.configure()
 #trajectorygenerator_right.preparePorts()
 #trajectorygenerator_right.configure()
 
+loadComponent("combiner", "FeedbackCombiner")
+setActivityOnCPU("combiner",0.002,17,ORO_SCHED_RT,1)
+combiner.setDOFsize(14)
+combiner.addChainDOFsize(7)
+combiner.addChainDOFsize(7)
+combiner.preparePorts("")
+loadComponent("s_combiner", "TorqueCombiner")
+setActivityOnCPU("s_combiner",0.002,17,ORO_SCHED_RT,1)
+s_combiner.setDOFsize(14)
+s_combiner.addChainDOFsize(7)
+s_combiner.addChainDOFsize(7)
+s_combiner.preparePorts("")
+
+loadComponent("seperator", "TorqueCommandSeperator")
+setActivityOnCPU("seperator",0.002,17,ORO_SCHED_RT,1)
+seperator.setDOFsize(14)
+seperator.addChainDOFsize(7)
+seperator.addChainDOFsize(7)
+seperator.preparePorts("")
 
 # connect all auxiliaries
 #var ConnPolicy cp_aux;
@@ -56,11 +90,11 @@ left_controller.configure()
 #connect("right_controller.ja_out","lwr_robot.right_full_arm_JointPositionCtrl",cp_aux)
 #connect("right_controller.jt_out","lwr_robot.right_full_arm_JointTorqueCtrl",cp_aux)
 
-var ConnPolicy left_cp_aux;
-connect("lwr_robot.left_full_arm_JointFeedback", "left_controller.RobotIn", left_cp_aux)
-connect("lwr_robot.left_full_arm_output_M", "left_controller.in_M", left_cp_aux)
-connect("left_controller.ja_out","lwr_robot.left_full_arm_JointPositionCtrl",left_cp_aux)
-connect("left_controller.jt_out","lwr_robot.left_full_arm_JointTorqueCtrl",left_cp_aux)
+#var ConnPolicy left_cp_aux;
+#connect("lwr_robot.left_full_arm_JointFeedback", "left_controller.RobotIn", left_cp_aux)
+#connect("lwr_robot.left_full_arm_output_M", "left_controller.in_M", left_cp_aux)
+#connect("left_controller.ja_out","lwr_robot.left_full_arm_JointPositionCtrl",left_cp_aux)
+#connect("left_controller.jt_out","lwr_robot.left_full_arm_JointTorqueCtrl",left_cp_aux)
 
 # connect TrajectoryGenerator to PositionController
 #var ConnPolicy cp_traj_posCtrl;
@@ -71,13 +105,56 @@ connect("left_controller.jt_out","lwr_robot.left_full_arm_JointTorqueCtrl",left_
 #connect("trajectorygenerator_right.out_desiredTaskSpaceVelocity_port", "right_controller.in_xd_des", cp_traj_posCtrl)
 #connect("trajectorygenerator.out_desiredTaskSpaceAcceleration_port", "positioncontroller.in_desiredTaskSpaceAcceleration_port", cp_traj_posCtrl)
 
+# connect all auxiliaries
+var ConnPolicy cp_aux;
+connect("lwr_robot.left_full_arm_JointFeedback", "controller.controller_RobotIn", cp_aux)
+connect("lwr_robot.left_full_arm_JointFeedback", "left_controller.left_controller_RobotIn", cp_aux)
+connect("lwr_robot.right_full_arm_JointFeedback", "right_controller.right_controller_RobotIn", cp_aux)
+connect("lwr_robot.left_full_arm_JointFeedback", "combiner.in_robotstatus_port_0",cp_aux)
+connect("lwr_robot.right_full_arm_JointFeedback", "combiner.in_robotstatus_port_1",cp_aux)
+connect("combiner.out_robotstatus_port", "controller.controller_dual__RobotIn", cp_aux)
+
+#connect("controller.jt_out","lwr_robot.left_full_arm_JointTorqueCtrl",cp_aux)
+#connect("controller.jt_out","seperator.in_torques_port",cp_aux)
+
+
+var ConnPolicy cp_jointposcontroller;
+connect("left_controller.jt_out", "s_combiner.in_robotstatus_port_0", cp_jointposcontroller)
+connect("right_controller.jt_out", "s_combiner.in_robotstatus_port_1", cp_jointposcontroller)
+
+connect("s_combiner.out_robotstatus_port", "torqueTransition.in_torquesA_port", cp_jointposcontroller)
+connect("controller.jt_out", "torqueTransition.in_torquesB_port", cp_jointposcontroller)
+connect("torqueTransition.out_torques_port","seperator.in_torques_port",cp_aux)
+
+
+connect("seperator.out_torques_port_0","lwr_robot.left_full_arm_JointTorqueCtrl",cp_aux)
+connect("seperator.out_torques_port_1","lwr_robot.right_full_arm_JointTorqueCtrl",cp_aux)
+
 
 #setting the control mode
-#lwr_robot.setControlMode("right_full_arm", "JointTorqueCtrl")
+lwr_robot.setControlMode("right_full_arm", "JointTorqueCtrl")
 lwr_robot.setControlMode("left_full_arm", "JointTorqueCtrl")
 
-#right_controller.setPos(0.4,-0.30,0.3)
-#right_controller.setStepSize(0.01)
+controller.setPos(0.4,0.4,1)
+controller.setPos_c(0,0,0.4)
+controller.quat_x=1
+controller.quat_y=0
+controller.quat_z=0
+controller.quat_w=0
+controller.quat_x_c=0
+controller.quat_y_c=1
+controller.quat_z_c=0
+controller.quat_w_c=0
+controller.Kp=50
+controller.Dp=1
+controller.Ko=5
+controller.Do=1
+controller.Kp_c=50
+controller.Dp_c=1
+controller.Ko_c=5
+controller.Do_c=0.5
+
+right_controller.setPos(0.4,-0.30,0.3)
 #controller.quat_x=-0.279594
 #controller.quat_y=0.654638
 #controller.quat_z=-0.642224
@@ -88,32 +165,38 @@ lwr_robot.setControlMode("left_full_arm", "JointTorqueCtrl")
 #controller.quat_y=1
 #controller.quat_z=0
 #controller.quat_w=0
-#right_controller.quat_x=1
-#right_controller.quat_y=0
-#right_controller.quat_z=0
-#right_controller.quat_w=0
-#right_controller.Kp=50
-#right_controller.Dp=10
-#right_controller.Ko=50
-#right_controller.Do=1
+right_controller.quat_x=-0.707
+right_controller.quat_y=0
+right_controller.quat_z=0
+right_controller.quat_w=0.707
+right_controller.Kp=50
+right_controller.Dp=5
+right_controller.Ko=10
+right_controller.Do=0.5
 
 left_controller.setPos(0.4,0.30,0.3)
 left_controller.setStepSize(0.01)
-left_controller.quat_x=0
-left_controller.quat_y=1
+left_controller.quat_x=0.707
+left_controller.quat_y=0
 left_controller.quat_z=0
-left_controller.quat_w=0
-left_controller.Kp=100
-left_controller.Dp=10
+left_controller.quat_w=0.707
+left_controller.Kp=50
+left_controller.Dp=5
 left_controller.Ko=10
-left_controller.Do=0.1
+left_controller.Do=1
 
 #controller
 #trajectorygenerator.start()
 #trajectorygenerator_right.start()
-#right_controller.start()
+combiner.start()
+seperator.start()
 left_controller.start()
+right_controller.start()
+torqueTransition.start()
+s_combiner.start()
+controller.start()
 lwr_robot.start()
+
 
 
 

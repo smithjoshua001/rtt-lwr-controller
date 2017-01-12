@@ -357,8 +357,12 @@ void RJPIController::updateHook() {
 	jac_x.block<6, 14>(0, 0) = dual_arm_chain.jac;
 	jacd_x.block<6, 14>(0, 0) = dual_arm_chain.jacd;
 	RTT::log(RTT::Info)<<"BEFORE:"<<jac_x.block<6, 7>(0, 0)<<RTT::endlog();
-	jac_x.block<6, 7>(0, 0).rowwise().reverseInPlace();
-	jacd_x.block<6, 7>(0, 0).rowwise().reverseInPlace();
+	//jac_x.block<6, 7>(0, 0).rowwise().reverseInPlace();
+	//jacd_x.block<6, 7>(0, 0).rowwise().reverseInPlace();
+	for(int i = 0; i<6; i++){
+	  jac_x.block<1,7>(i,0).reverseInPlace();
+	  jacd_x.block<1,7>(i,0).reverseInPlace();
+	}
 	RTT::log(RTT::Info)<<"AFTER:"<<jac_x.block<6, 7>(0, 0)<<RTT::endlog();
 
 	lambda_c = (jac_x * (M_c.inverse()) * P * (jac_x.transpose())).inverse();
