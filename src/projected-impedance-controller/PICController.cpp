@@ -421,7 +421,7 @@ void PICController::updateHook() {
 
 	lambda_d = lambda_c;
 //	F = h_c + lambda_c * xdd_des - lambda_c*lambda_d.inverse()*(velError+posError)+( lambda_c*lambda_d.inverse() - Eigen::Matrix<float,6,6>::Identity())*F_x;
-	F = h_c + (lambda_c * xdd_des) - (-velError - posError);
+	F = h_c + (lambda_c * in_xdd_des) - (-velError - posError);
 	N = (Eigen::Matrix<float, 7, 7>::Identity()
 			- (jac_x.transpose() * lambda_c * jac_x * M_c.inverse() * P));
 	tau_0 = Kn*(-robot_state.angles)+Dn*(robot_state.velocities);
