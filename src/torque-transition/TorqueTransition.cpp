@@ -60,7 +60,7 @@ void TorqueTransition::updateHook() {
         //hard jump
         //if (this->getSimulationTime() - startTime < transitionTime){
        
-    } else if ((in_torquesB_flow == RTT::NewData || in_torquesB_flow == RTT::OldData)&& toggle_bool) {	RTT::log(RTT::Info)<<"DEBUG3"<<RTT::endlog();
+    } else if ((in_torquesB_flow == RTT::NewData || in_torquesB_flow == RTT::OldData)&& toggle_bool) {
 	 out_torques_var.torques = in_torquesB_var.torques;
     } else if ((in_torquesA_flow == RTT::NoData) &&!toggle_bool) {
 //	RTT::log(RTT::Info)<<"DEBUG5"<<RTT::endlog();
