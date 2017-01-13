@@ -20,6 +20,8 @@ PICController::PICController(std::string const & name) :
 			RTT::ClientThread);
 	this->addOperation("constraint_switch", &PICController::constraint_switch, this,
 				RTT::ClientThread);
+	this->addOperation("setPOgains", &PICController::setPOgains, this,
+				RTT::ClientThread);
 	step_size = 0.1;
 	pos.setZero();
 	quat_d.resize(4);
@@ -36,6 +38,10 @@ PICController::PICController(std::string const & name) :
 	Dp = 0.2;
 	Ko = 10;
 	Do = 0.2;
+	Kop =0;
+	Dop =0;
+        properties()->addProperty("Kop", Kop);
+	properties()->addProperty("Dop", Dop);
 	properties()->addProperty("quat_x", quat_d(0));
 	properties()->addProperty("quat_y", quat_d(1));
 	properties()->addProperty("quat_z", quat_d(2));
@@ -163,13 +169,13 @@ void PICController::updateHook() {
 
 	////RTT::log(RTT::Info)<<pos<<RTT::endlog();
 	Eigen::VectorXf posError(6);
+	Eigen::Matrix3f rot_mat;
 	if (in_x_des_flow == RTT::NoData|| !traj_bool) {
 		posError[0] = pos[0] - cart_pos.p.data[0];
 		posError[1] = pos[1] - cart_pos.p.data[1];
 		posError[2] = pos[2] - cart_pos.p.data[2];
 		KDL::Rotation rot_KDL = KDL::Rotation::Quaternion(quat_d(0), quat_d(1),
 				quat_d(2), quat_d(3));
-		Eigen::Matrix3f rot_mat;
 //	rot_mat(0,0) = 1-2*pow(quat_d(1),2)-2*pow(quat_d(2),2);
 //	rot_mat(0,1) = 2*quat_d(0)*quat_d(1) - 2*quat_d(2)*quat_d(3);
 //	rot_mat(0,2) = 2*quat_d(0)*quat_d(2) + 2*quat_d(1)*quat_d(3);
@@ -212,7 +218,7 @@ void PICController::updateHook() {
 		posError[2] = in_x_des[2] - cart_pos.p.data[2];
 		KDL::Rotation rot_KDL = KDL::Rotation::Quaternion(quat_d(0), quat_d(1),
 				quat_d(2), quat_d(3));
-		Eigen::Matrix3f rot_mat;
+		
 		rot_mat(0, 0) = rot_KDL.data[0];
 		rot_mat(0, 1) = rot_KDL.data[1];
 		rot_mat(0, 2) = rot_KDL.data[2];
@@ -334,6 +340,10 @@ void PICController::updateHook() {
 	jacd_x = jacd;
 	jac_c.setZero();
 	tau_c.setZero();
+	Eigen::VectorXf POerror(6);
+	POerror.setZero();
+	Eigen::VectorXf VOerror(6);
+	VOerror.setZero();
 	if (constraint_on) {
 		jac_c = jac;
 		jac_c.row(0).setZero();
@@ -345,7 +355,11 @@ void PICController::updateHook() {
 		jacd_x.row(2).setZero();
 		jacd_x.row(3).setZero();
 		jacd_x.row(4).setZero();
-		tau_c = jac.transpose()*force;
+		POerror.tail<3>() = -rot_mat * delta_quat;
+		POerror *= Kop;
+		VOerror.tail<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
+				cart_vel.GetTwist().rot.data).cast<float>() * -Dop;
+		tau_c = jac.transpose()*(force+POerror+VOerror);
 	}
 
 	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_jac_c(jac_c.rows(),
@@ -374,11 +388,8 @@ void PICController::updateHook() {
 	}else{
 	M_c = (P * M_cf) + Eigen::Matrix<float, 7, 7>::Identity() - P;
 	}
-	RTT::log(RTT::Error)<<name<<" jac_c_Pinv: "<<jac_c_Pinv<<RTT::endlog();
-	RTT::log(RTT::Error)<<name<<" P: "<<P<<RTT::endlog();
-	Eigen::FullPivLU<Eigen::MatrixXf> lu_decomp(P);
-	auto rank = lu_decomp.rank();
-	RTT::log(RTT::Error)<<name<<" rank P: "<<rank<<RTT::endlog();
+	//RTT::log(RTT::Error)<<name<<" jac_c_Pinv: "<<jac_c_Pinv<<RTT::endlog();
+	//RTT::log(RTT::Error)<<name<<" P: "<<P<<RTT::endlog();
 	lambda_c = (jac_x * (M_c.inverse()) * P * (jac_x.transpose()));
 	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_lambda_c(lambda_c.rows(),
 			lambda_c.cols());
@@ -400,10 +411,10 @@ void PICController::updateHook() {
 						* svd_solver_lambda_c.matrixU().leftCols(
 								singular_values_lambda_c.size()).transpose();
 
-	RTT::log(RTT::Error)<<name<<" lambda_c: "<<lambda_c<<RTT::endlog();
-	RTT::log(RTT::Error)<<name<<" jac_x: "<<jac_x<<RTT::endlog();
-	RTT::log(RTT::Error)<<name<<" M_c: "<<M_c<<RTT::endlog();
-	RTT::log(RTT::Error)<<name<<" lambda_c_inv: "<<(jac_x * (M_c.inverse()) * P * (jac_x.transpose()))<<RTT::endlog();
+	//RTT::log(RTT::Error)<<name<<" lambda_c: "<<lambda_c<<RTT::endlog();
+	//RTT::log(RTT::Error)<<name<<" jac_x: "<<jac_x<<RTT::endlog();
+	//RTT::log(RTT::Error)<<name<<" M_c: "<<M_c<<RTT::endlog();
+	//RTT::log(RTT::Error)<<name<<" lambda_c_inv: "<<(jac_x * (M_c.inverse()) * P * (jac_x.transpose()))<<RTT::endlog();
 	h_c = (lambda_c * jac_x * M_c.inverse()
 			* ((P * (C_cf)) - (Pd * robot_state.velocities)))
 			- (lambda_c * jacd_x * robot_state.velocities);
@@ -429,6 +440,10 @@ void PICController::stopHook() {
 }
 void PICController::cleanupHook() {
 
+}
+void PICController::setPOgains(float k, float d){
+     this->Kop = k;
+     this->Dop = d;
 }
 
 void PICController::setPos(float x, float y, float z) {
