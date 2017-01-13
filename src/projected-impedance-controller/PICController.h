@@ -58,7 +58,7 @@ public:
 	Eigen::VectorXf in_xd_des;
 
 	Eigen::Matrix<float,6,7> jac_c;
-	Eigen::Matrix<float,7,7> P;
+	Eigen::Matrix<float,7,7> P, prevP;
 	Eigen::Matrix<float,7,7> Pd;
 	Eigen::Matrix<float,7,7> M_c,N;
 	Eigen::Matrix<float,6,7> jac_x;
@@ -81,6 +81,7 @@ public:
 	float Kp,Dp,Ko,Do,Dn,Kn,Kop,Dop;
 	bool constraint_on,simulation, traj_bool;
 	Eigen::VectorXf force;
+	double start_time, end_time;
 };
 
 #endif /* PICCONTROLLER_H_ */

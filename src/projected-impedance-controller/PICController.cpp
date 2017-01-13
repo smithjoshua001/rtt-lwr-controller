@@ -28,6 +28,7 @@ PICController::PICController(std::string const & name) :
 	quat_d.setZero();
 	jac_c.setZero();
 	P.setZero();
+	prevP.setZero();
 	Pd.setZero();
 	xdd_des.setZero();
 	F_x.setZero();
@@ -342,18 +343,20 @@ void PICController::updateHook() {
 		jac_c = jac;
 		jac_c.row(0).setZero();
 		jac_c.row(1).setZero();
+		jac_c.row(3).setZero();
+		jac_c.row(4).setZero();
 		jac_c.row(5).setZero();
 		jac_x.row(2).setZero();
-		jac_x.row(3).setZero();
-		jac_x.row(4).setZero();
+		//jac_x.row(3).setZero();
+		//jac_x.row(4).setZero();
 		jacd_x.row(2).setZero();
-		jacd_x.row(3).setZero();
-		jacd_x.row(4).setZero();
-		POerror.tail<3>() = -rot_mat * delta_quat;
+		//jacd_x.row(3).setZero();
+		//jacd_x.row(4).setZero();
+		/*POerror.tail<3>() = -rot_mat * delta_quat;
 		POerror *= Kop;
 		VOerror.tail<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
-				cart_vel.GetTwist().rot.data).cast<float>() * -Dop;
-		tau_c = jac.transpose()*(force+POerror+VOerror);
+				cart_vel.GetTwist().rot.data).cast<float>() * -Dop;+POerror+VOerror*/
+		tau_c = jac.transpose()*(force);
 	}
 
 	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_jac_c(jac_c.rows(),
@@ -377,6 +380,15 @@ void PICController::updateHook() {
 							singular_values_jac_c.size()).transpose();
 
 	P = Eigen::Matrix<float, 7, 7>::Identity() - (jac_c_Pinv * jac_c);
+	end_time = (1E-9*RTT::os::TimeService::ticks2nsecs(RTT::os::TimeService::Instance()->getTicks()));
+	if(constraint_on){
+	     if(prevP.isZero()){
+		start_time = (1E-9*RTT::os::TimeService::ticks2nsecs(RTT::os::TimeService::Instance()->getTicks()));
+		prevP = P;
+	     }
+             Pd = (P - prevP)*(end_time-start_time);
+             start_time=end_time;
+	}
 	if(simulation){
 		M_c = (P * M) + Eigen::Matrix<float, 7, 7>::Identity() - P;
 	}else{
