@@ -18,6 +18,8 @@ PICController::PICController(std::string const & name) :
 			RTT::ClientThread);
 	this->addOperation("setStepSize", &PICController::setStepSize, this,
 			RTT::ClientThread);
+	this->addOperation("constraint_switch", &PICController::constraint_switch, this,
+				RTT::ClientThread);
 	step_size = 0.1;
 	pos.setZero();
 	quat_d.resize(4);
@@ -29,6 +31,7 @@ PICController::PICController(std::string const & name) :
 	F_x.setZero();
 	tau_c.setZero();
 	tau_0.setZero();
+	constraint_on = false;
 	Kp = 10;
 	Dp = 0.2;
 	Ko = 10;
@@ -41,6 +44,14 @@ PICController::PICController(std::string const & name) :
 	properties()->addProperty("Dp", Dp);
 	properties()->addProperty("Ko", Ko);
 	properties()->addProperty("Do", Do);
+	properties()->addProperty("Kn", Kn);
+	properties()->addProperty("Dn", Dn);
+	properties()->addProperty("sim", simulation);
+	traj_bool=false;
+	properties()->addProperty("traj_bool", traj_bool);
+	force.resize(6);
+	force.setZero();
+	properties()->addProperty("z_force",force(2));
 
 	//ports()->addPort(robot_state_port);
 	//out_angles_var.angles.resize(DOFsize);
@@ -87,7 +98,7 @@ bool PICController::configureHook() {
 }
 bool PICController::startHook() {
 	return (robot_state_port.connected()); //&& out_angles_port.connected());
-			//&& in_M_port.connected());
+	//&& in_M_port.connected());
 }
 void PICController::updateHook() {
 
@@ -146,7 +157,7 @@ void PICController::updateHook() {
 
 	////RTT::log(RTT::Info)<<pos<<RTT::endlog();
 	Eigen::VectorXf posError(6);
-	if (in_x_des_flow == RTT::NoData) {
+	if (in_x_des_flow == RTT::NoData|| !traj_bool) {
 		posError[0] = pos[0] - cart_pos.p.data[0];
 		posError[1] = pos[1] - cart_pos.p.data[1];
 		posError[2] = pos[2] - cart_pos.p.data[2];
@@ -237,8 +248,12 @@ void PICController::updateHook() {
 	 singular_values.size()) * singular_values.asDiagonal()
 	 * svd_solver.matrixU().leftCols(singular_values.size()).transpose();
 	 */
-	Eigen::MatrixXf in_M_Pinv = M_cf.inverse();
-
+	Eigen::MatrixXf in_M_Pinv(7,7);
+	if(simulation){
+		in_M_Pinv= M.inverse();
+	}else{
+	in_M_Pinv= M_cf.inverse();
+	}
 //	out_angles_var.angles = robot_state.angles;	//+jacPinv*posError;// (jacResize.transpose()*(jacResize*jacResize.transpose()).inverse())*posError;
 //	out_angles_var.angles[5] += 0.2 * 0.005;
 	////RTT::log(RTT::Info)<<out_angles_var.angles<<RTT::endlog();
@@ -257,7 +272,7 @@ void PICController::updateHook() {
 	posError.tail<3>() *= Ko;
 
 	Eigen::VectorXf velError(6);
-	if (in_xd_des_flow == RTT::NoData) {
+	if (in_xd_des_flow == RTT::NoData || !traj_bool) {
 		velError.head<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
 				cart_vel.GetTwist().vel.data).cast<float>() * -Dp;
 		velError.tail<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
@@ -309,44 +324,99 @@ void PICController::updateHook() {
 	//RTT::log(RTT::Info) << C_cf<<": C_cf VALUE" << RTT::endlog();
 
 	//jac_c=vec*jac; FOR CALCULATING jac_c
-	/*Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_jac_c(jac_c.rows(), jac_c.cols());
-	 svd_solver_jac_c.compute(jac_c, Eigen::ComputeFullU | Eigen::ComputeFullV);
-
-	 Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_jac_c =
-	 svd_solver_jac_c.singularValues();
-	 for (int i = 0; i < singular_values_jac_c.size(); i++) {
-	 if (singular_values_jac_c(i) < 1.e-06) {
-	 singular_values_jac_c(i) = 0;
-	 } else {
-	 singular_values_jac_c(i) = 1 / singular_values_jac_c(i);
-	 }
-	 }
-
-	 Eigen::MatrixXf jac_c_Pinv = svd_solver_jac_c.matrixV().leftCols(
-	 singular_values_jac_c.size()) * singular_values_jac_c.asDiagonal()
-	 * svd_solver_jac_c.matrixU().leftCols(singular_values_jac_c.size()).transpose();
-	 */
-	P = Eigen::Matrix<float, 7, 7>::Identity();	//-(jac_c_Pinv*jac_c);
-
-	M_c = (P * M_cf) + Eigen::Matrix<float, 7, 7>::Identity() - P;
 	jac_x = jac;
 	jacd_x = jacd;
+	jac_c.setZero();
+	tau_c.setZero();
+	if (constraint_on) {
+		jac_c = jac;
+		jac_c.row(0).setZero();
+		jac_c.row(1).setZero();
+		jac_c.row(5).setZero();
+		jac_x.row(2).setZero();
+		jac_x.row(3).setZero();
+		jac_x.row(4).setZero();
+		jacd_x.row(2).setZero();
+		jacd_x.row(3).setZero();
+		jacd_x.row(4).setZero();
+		tau_c = jac.transpose()*force;
+	}
 
-	lambda_c = (jac_x * (M_c.inverse()) * P * (jac_x.transpose())).inverse();
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_jac_c(jac_c.rows(),
+			jac_c.cols());
+	svd_solver_jac_c.compute(jac_c, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_jac_c =
+			svd_solver_jac_c.singularValues();
+	for (int i = 0; i < singular_values_jac_c.size(); i++) {
+		if (singular_values_jac_c(i) < 1.e-06) {
+			singular_values_jac_c(i) = 0;
+		} else {
+			singular_values_jac_c(i) = 1 / singular_values_jac_c(i);
+		}
+	}
+
+	Eigen::MatrixXf jac_c_Pinv =
+			svd_solver_jac_c.matrixV().leftCols(singular_values_jac_c.size())
+					* singular_values_jac_c.asDiagonal()
+					* svd_solver_jac_c.matrixU().leftCols(
+							singular_values_jac_c.size()).transpose();
+
+	P = Eigen::Matrix<float, 7, 7>::Identity() - (jac_c_Pinv * jac_c);
+	if(simulation){
+		M_c = (P * M) + Eigen::Matrix<float, 7, 7>::Identity() - P;
+	}else{
+	M_c = (P * M_cf) + Eigen::Matrix<float, 7, 7>::Identity() - P;
+	}
+	RTT::log(RTT::Error)<<name<<" jac_c_Pinv: "<<jac_c_Pinv<<RTT::endlog();
+	RTT::log(RTT::Error)<<name<<" P: "<<P<<RTT::endlog();
+	Eigen::FullPivLU<Eigen::MatrixXf> lu_decomp(P);
+	auto rank = lu_decomp.rank();
+	RTT::log(RTT::Error)<<name<<" rank P: "<<rank<<RTT::endlog();
+	lambda_c = (jac_x * (M_c.inverse()) * P * (jac_x.transpose()));
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_lambda_c(lambda_c.rows(),
+			lambda_c.cols());
+		svd_solver_lambda_c.compute(lambda_c, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+		Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_lambda_c =
+				svd_solver_lambda_c.singularValues();
+		for (int i = 0; i < singular_values_lambda_c.size(); i++) {
+			if (singular_values_lambda_c(i) < 1.e-06) {
+				singular_values_lambda_c(i) = 0;
+			} else {
+				singular_values_lambda_c(i) = 1 / singular_values_lambda_c(i);
+			}
+		}
+
+		lambda_c =
+				svd_solver_lambda_c.matrixV().leftCols(singular_values_lambda_c.size())
+						* singular_values_lambda_c.asDiagonal()
+						* svd_solver_lambda_c.matrixU().leftCols(
+								singular_values_lambda_c.size()).transpose();
+
+	RTT::log(RTT::Error)<<name<<" lambda_c: "<<lambda_c<<RTT::endlog();
+	RTT::log(RTT::Error)<<name<<" jac_x: "<<jac_x<<RTT::endlog();
+	RTT::log(RTT::Error)<<name<<" M_c: "<<M_c<<RTT::endlog();
+	RTT::log(RTT::Error)<<name<<" lambda_c_inv: "<<(jac_x * (M_c.inverse()) * P * (jac_x.transpose()))<<RTT::endlog();
 	h_c = (lambda_c * jac_x * M_c.inverse()
 			* ((P * (C_cf)) - (Pd * robot_state.velocities)))
 			- (lambda_c * jacd_x * robot_state.velocities);
+
 	lambda_d = lambda_c;
 //	F = h_c + lambda_c * xdd_des - lambda_c*lambda_d.inverse()*(velError+posError)+( lambda_c*lambda_d.inverse() - Eigen::Matrix<float,6,6>::Identity())*F_x;
-	F = h_c + (lambda_c * xdd_des) -(-velError-posError);
-	N = (Eigen::Matrix<float, 7, 7>::Identity()-(jac_x.transpose()*lambda_c*jac_x*M_c.inverse()*P));
-	RTT::log(RTT::Info) << name << " F: " <<F<< RTT::endlog();
-	RTT::log(RTT::Info) << name << " lambdaC norm: " <<lambda_c.norm()<< RTT::endlog();
-	out_torques_var.torques = P*jac_x.transpose()*F + P*N*tau_0 + ((Eigen::Matrix<float,7,7>::Identity()-P)*tau_c);
+	F = h_c + (lambda_c * xdd_des) - (-velError - posError);
+	N = (Eigen::Matrix<float, 7, 7>::Identity()
+			- (jac_x.transpose() * lambda_c * jac_x * M_c.inverse() * P));
+	tau_0 = Kn*(-robot_state.angles)+Dn*(robot_state.velocities);
+	out_torques_var.torques = P * jac_x.transpose() * F + P * N * tau_0
+			+ ((Eigen::Matrix<float, 7, 7>::Identity() - P) * tau_c);
 	//out_torques_var.torques.setZero();
-			out_torques_port.write(out_torques_var);
+	out_torques_port.write(out_torques_var);
 	RTT::log(RTT::Info) << name << " Stop" << RTT::endlog();
 
+}
+void PICController::constraint_switch() {
+	constraint_on = !constraint_on;
 }
 void PICController::stopHook() {
 
