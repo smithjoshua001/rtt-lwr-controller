@@ -16,6 +16,7 @@ TrajectoryGen::TrajectoryGen(std::string const & name) : RTT::TaskContext(name),
     addOperation("setRadius", &TrajectoryGen::setRadius, this, RTT::ClientThread).doc("set radius");
     addOperation("setCenter", &TrajectoryGen::setCenter,this,RTT::ClientThread);
     addProperty("radius",radius);
+    addProperty("timescale",_timescale);
 
     //other stuff
     portsArePrepared = false;

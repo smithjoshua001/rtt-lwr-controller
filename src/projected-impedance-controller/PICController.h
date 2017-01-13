@@ -38,6 +38,7 @@ public:
 	void constraint_switch();
 
 	void setPos(float x, float y, float z);
+	void setPOgains(float k, float d);
 	void setStepSize(float step_size){
 		this->step_size = step_size;
 	}
@@ -77,7 +78,7 @@ public:
 	Eigen::Vector3f pos;
 	float step_size;
 	Eigen::VectorXf quat_d;
-	float Kp,Dp,Ko,Do,Dn,Kn;
+	float Kp,Dp,Ko,Do,Dn,Kn,Kop,Dop;
 	bool constraint_on,simulation, traj_bool;
 	Eigen::VectorXf force;
 };

@@ -1,0 +1,213 @@
+import("eigen_typekit")
+import("kdl_typekit")
+import("rst-rt_typekit")
+
+import("rtt_gazebo_embedded")
+import("rtt-gazebo-robot-sim")
+import("LWRControllerContained")
+
+
+import("cosima-aux-kd")
+
+require("os")
+
+loadComponent("gazebo","RTTGazeboEmbedded")
+setActivity("gazebo",0,10,ORO_SCHED_OTHER)
+gazebo.argv = strings("--verbose")
+gazebo.add_plugin("libRTTGazeboClockPlugin.so")
+
+loadComponent("coman_gazebo","cogimon::robotSim")
+setActivity("coman_gazebo",0,11,ORO_SCHED_OTHER)
+
+var string path_world=os.getenv("prefix")+"/cogimon-minimal-nightly/etc/cogimon-scenarios/scenario-wipe-board/world/scn-wipe-board-vertical-boris-base.world"
+gazebo.world_path = path_world
+
+gazebo.configure()
+gazebo.start()
+gazebo.toggleDynamicsSimulation(false)
+
+gazebo.spawn_model_at_pos("kuka-lwr", "model://boris-ft", 0,0,0)
+
+
+coman_gazebo.getModel("kuka-lwr")
+var int DOFsize = 7;
+var string path_model_urdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.urdf"
+var string path_model_srdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-ft/model.srdf"
+coman_gazebo.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+coman_gazebo.configure()
+var rstrt.kinematics.JointAngles desJointAngles_start = rstrt.kinematics.JointAngles(14)
+desJointAngles_start.angles[0] =2.5 
+desJointAngles_start.angles[1] =-1.81326
+desJointAngles_start.angles[2] =-1.21934
+desJointAngles_start.angles[3] =1.34302
+desJointAngles_start.angles[4] =2.96706
+desJointAngles_start.angles[5] =-1.71339
+desJointAngles_start.angles[6] = 0
+desJointAngles_start.angles[7] =2.5 
+desJointAngles_start.angles[8] =-1.81326
+desJointAngles_start.angles[9] =1.21934
+desJointAngles_start.angles[10] =1.34302
+desJointAngles_start.angles[11] =2.96706
+desJointAngles_start.angles[12] =-1.71339
+desJointAngles_start.angles[13] = 0
+
+gazebo.setInitialConfigurationForModel("kuka-lwr", desJointAngles_start);
+
+loadComponent("combiner", "FeedbackCombiner")
+setActivity("combiner",0.1,10,ORO_SCHED_OTHER)
+combiner.setDOFsize(14)
+combiner.addChainDOFsize(7)
+combiner.addChainDOFsize(7)
+combiner.preparePorts("")
+loadComponent("s_combiner", "TorqueCombiner")
+setActivity("s_combiner",0.1,10,ORO_SCHED_OTHER)
+s_combiner.setDOFsize(14)
+s_combiner.addChainDOFsize(7)
+s_combiner.addChainDOFsize(7)
+s_combiner.preparePorts("")
+
+loadComponent("seperator", "TorqueCommandSeperator")
+setActivity("seperator",0.1,10,ORO_SCHED_OTHER)
+seperator.setDOFsize(14)
+seperator.addChainDOFsize(7)
+seperator.addChainDOFsize(7)
+seperator.preparePorts("")
+
+loadComponent("controller", "RJPIController")
+setActivity("controller",0.1,10,ORO_SCHED_OTHER)
+controller.setBaseAndTip("krc_base","left_lwr_tool_link")
+controller.setBaseAndTip_dual("left_lwr_tool_link","right_lwr_tool_link")
+controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+controller.loadURDFAndSRDF_dual(path_model_urdf, path_model_srdf)
+controller.configure()
+
+loadComponent("left_controller", "PICController")
+setActivity("left_controller",0.1,10,ORO_SCHED_OTHER)
+left_controller.setBaseAndTip("krc_base","left_lwr_tool_link")
+left_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+left_controller.configure()
+loadComponent("right_controller", "PICController")
+setActivity("right_controller",0.1,10,ORO_SCHED_OTHER)
+right_controller.setBaseAndTip("krc_base","right_lwr_tool_link")
+right_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+right_controller.configure()
+
+loadComponent("left_torqueTransition","TorqueTransition")
+setActivity("left_torqueTransition",0.1,10,ORO_SCHED_OTHER)
+left_torqueTransition.setDOFsizeAndTransitionTime(14,5)
+left_torqueTransition.configure()
+
+# load TrajectoryGenerator
+loadComponent("trajectorygenerator", "TrajectoryGen")
+setActivity("trajectorygenerator",0.004,12,ORO_SCHED_RT)
+trajectorygenerator.setTranslationOnly(false);
+trajectorygenerator.setCenter(0.55,0.60,0.8)
+trajectorygenerator.radius = 0.1
+trajectorygenerator.preparePorts()
+trajectorygenerator.configure()
+
+
+
+
+# connect all auxiliaries
+var ConnPolicy cp_aux;
+connect("coman_gazebo.left_full_arm_JointFeedback", "controller.controller_RobotIn", cp_aux)
+connect("coman_gazebo.left_full_arm_JointFeedback", "left_controller.left_controller_RobotIn", cp_aux)
+connect("coman_gazebo.right_full_arm_JointFeedback", "right_controller.right_controller_RobotIn", cp_aux)
+connect("coman_gazebo.left_full_arm_JointFeedback", "combiner.in_robotstatus_port_0",cp_aux)
+connect("coman_gazebo.right_full_arm_JointFeedback", "combiner.in_robotstatus_port_1",cp_aux)
+connect("combiner.out_robotstatus_port", "controller.controller_dual__RobotIn", cp_aux)
+
+#connect("controller.jt_out","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
+#connect("controller.jt_out","seperator.in_torques_port",cp_aux)
+
+var ConnPolicy cp_traj_posCtrl;
+connect("trajectorygenerator.out_desiredTaskSpacePosition_port", "left_controller.in_x_des", cp_traj_posCtrl)
+connect("trajectorygenerator.out_desiredTaskSpaceVelocity_port", "left_controller.in_xd_des", cp_traj_posCtrl)
+
+var ConnPolicy cp_jointposcontroller;
+connect("left_controller.jt_out", "s_combiner.in_robotstatus_port_0", cp_jointposcontroller)
+connect("right_controller.jt_out", "s_combiner.in_robotstatus_port_1", cp_jointposcontroller)
+
+connect("s_combiner.out_robotstatus_port", "left_torqueTransition.in_torquesA_port", cp_jointposcontroller)
+connect("controller.jt_out", "left_torqueTransition.in_torquesB_port", cp_jointposcontroller)
+connect("left_torqueTransition.out_torques_port","seperator.in_torques_port",cp_aux)
+
+
+connect("seperator.out_torques_port_0","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
+connect("seperator.out_torques_port_1","coman_gazebo.right_full_arm_JointTorqueCtrl",cp_aux)
+
+#connect("left_torqueTransition.out_torques_port","coman_gazebo.left_full_arm_JointTorqueCtrl",cp_aux)
+#connect("right_torqueTransition.out_torques_port","coman_gazebo.right_full_arm_JointTorqueCtrl",cp_aux)
+
+
+coman_gazebo.setControlMode("left_full_arm", "JointTorqueCtrl")
+coman_gazebo.setControlMode("right_full_arm", "JointTorqueCtrl")
+gazebo.toggleDynamicsSimulation(true)
+
+#controller.quat_x=-0.5
+#controller.quat_y=-0.5
+#controller.quat_z=0.5
+#controller.quat_w=0.5
+controller.quat_x=1
+controller.quat_y=0
+controller.quat_z=0
+controller.quat_w=0
+controller.quat_x_c=0
+controller.quat_y_c=1
+controller.quat_z_c=0
+controller.quat_w_c=0
+controller.Kp=50
+controller.Dp=1
+controller.Ko=5
+controller.Do=1
+controller.Kp_c=20
+controller.Dp_c=1
+controller.Ko_c=5
+controller.Do_c=0.1
+
+left_controller.Kp=50
+left_controller.Dp=5
+left_controller.Ko=5
+left_controller.Do=0.01
+left_controller.Kn = 1
+left_controller.Dn = 1
+left_controller.sim =true
+#left_controller.quat_x=0.707
+#left_controller.quat_y=0
+#left_controller.quat_z=0
+#left_controller.quat_w=0.707
+left_controller.quat_x=0
+left_controller.quat_y=1
+left_controller.quat_z=0
+left_controller.quat_w=0
+left_controller.setPos(0.55,0.6,1)
+
+right_controller.Kp=100
+right_controller.Dp=20
+right_controller.Ko=3
+right_controller.Do=0
+right_controller.quat_x=-0.707
+right_controller.quat_y=0
+right_controller.quat_z=0
+right_controller.quat_w=0.707
+right_controller.setPos(0.3,-0.1,1)
+
+
+
+controller.setPos(0.4,0.4,1)
+controller.setPos_c(0,0,0.2)
+controller.setStepSize(0.5)
+
+#combiner.start()
+trajectorygenerator.start()
+seperator.start()
+left_controller.start()
+#right_controller.start()
+left_torqueTransition.start()
+s_combiner.start()
+#controller.start()
+gazebo.stop()
+
+
+

@@ -1,0 +1,77 @@
+import("eigen_typekit")
+import("kdl_typekit")
+import("rst-rt_typekit")
+import("cosima-aux-kd")
+import("rtt-lwr-hardware-integration") 
+import("LWRControllerContained")
+require("os")
+
+var int DOFsize = 7;
+var string path_model_urdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-left/model.urdf"
+var string path_model_srdf = os.getenv("GAZEBO_MODEL_PATH")+"/boris-left/model.srdf"
+
+loadComponent("lwr_robot","cogimon::lwr_robot")
+setActivityOnCPU("lwr_robot",0.003,18,ORO_SCHED_RT,1)
+lwr_robot.loadURDFAndSRDF(path_model_urdf,path_model_srdf)
+lwr_robot.configure()
+
+loadComponent("left_controller", "PICController")
+setActivityOnCPU("left_controller",0.001,1,ORO_SCHED_RT,3)
+left_controller.setBaseAndTip("krc_base","left_lwr_tool_link")
+#controller.setBaseAndTip("lwr_arm_base_link","lwr_tool")lwr_arm_7_link
+left_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+left_controller.configure()
+
+
+# load TrajectoryGenerator
+loadComponent("trajectorygenerator", "TrajectoryGen")
+setActivity("trajectorygenerator",0.004,12,ORO_SCHED_RT)
+trajectorygenerator.setTranslationOnly(false);
+trajectorygenerator.setCenter(0.4,0.3,0)
+trajectorygenerator.radius = 0.1
+trajectorygenerator.preparePorts()
+trajectorygenerator.configure()
+
+
+# connect all auxiliaries
+
+var ConnPolicy left_cp_aux;
+connect("lwr_robot.left_full_arm_JointFeedback", "left_controller.left_controller_RobotIn", left_cp_aux)
+connect("lwr_robot.left_full_arm_output_M", "left_controller.in_M", left_cp_aux)
+connect("left_controller.ja_out","lwr_robot.left_full_arm_JointPositionCtrl",left_cp_aux)
+connect("left_controller.jt_out","lwr_robot.left_full_arm_JointTorqueCtrl",left_cp_aux)
+
+# connect TrajectoryGenerator to PositionController
+var ConnPolicy cp_traj_posCtrl;
+connect("trajectorygenerator.out_desiredTaskSpacePosition_port", "left_controller.in_x_des", cp_traj_posCtrl)
+connect("trajectorygenerator.out_desiredTaskSpaceVelocity_port", "left_controller.in_xd_des", cp_traj_posCtrl)
+
+#setting the control mode
+lwr_robot.setControlMode("left_full_arm", "JointTorqueCtrl")
+
+
+left_controller.setPos(0.4,0.30,0.05)
+left_controller.setStepSize(0.01)
+left_controller.quat_x=0
+left_controller.quat_y=1
+left_controller.quat_z=0
+left_controller.quat_w=0
+left_controller.Kp=100
+left_controller.Dp=10
+left_controller.Ko=10
+left_controller.Do=1
+left_controller.Kn = 0
+left_controller.Dn = 0
+left_controller.Kop =0
+left_controller.Dop =0
+left_controller.sim =false
+left_controller.z_force = -5
+
+trajectorygenerator.start()
+left_controller.start()
+lwr_robot.start()
+
+
+
+
+
