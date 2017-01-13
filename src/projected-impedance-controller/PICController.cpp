@@ -93,6 +93,11 @@ bool PICController::configureHook() {
 	in_xd_des_port.setName("in_xd_des");
 	in_xd_des_flow = RTT::NoData;
 	ports()->addPort(in_xd_des_port);
+	in_xdd_des.resize(6);
+		in_xdd_des.setZero();
+		in_xdd_des_port.setName("in_xdd_des");
+		in_xdd_des_flow = RTT::NoData;
+		ports()->addPort(in_xdd_des_port);
 	return true;
 
 }
@@ -112,6 +117,7 @@ void PICController::updateHook() {
 //	}
 	in_x_des_flow = in_x_des_port.read(in_x_des);
 	in_xd_des_flow = in_xd_des_port.read(in_xd_des);
+	in_xdd_des_flow = in_xdd_des_port.read(in_xdd_des);
 
 	RTT::log(RTT::Info) << name << " Start" << RTT::endlog();
 //	calculateKinematics(robot_state);

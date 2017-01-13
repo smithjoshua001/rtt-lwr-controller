@@ -22,12 +22,12 @@ TrajectoryGen::TrajectoryGen(std::string const & name) : RTT::TaskContext(name),
 
     start_time = 0.0;
     _timescale = 0.6;
+    addProperty("timescale",_timescale);
 
     BoardRot = Eigen::MatrixXf(3,3);
     BoardTransl = Eigen::VectorXf(3);
     TipOrientation = Eigen::VectorXf(3);
     tmp = Eigen::VectorXf(3);
-
     setTranslationOnly(true);
 
     // board 45 degrees opposite side
