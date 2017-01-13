@@ -100,6 +100,11 @@ bool PICController::configureHook() {
 	in_xd_des_port.setName("in_xd_des");
 	in_xd_des_flow = RTT::NoData;
 	ports()->addPort(in_xd_des_port);
+	in_xdd_des.resize(6);
+		in_xdd_des.setZero();
+		in_xdd_des_port.setName("in_xdd_des");
+		in_xdd_des_flow = RTT::NoData;
+		ports()->addPort(in_xdd_des_port);
 	return true;
 
 }
@@ -119,6 +124,7 @@ void PICController::updateHook() {
 //	}
 	in_x_des_flow = in_x_des_port.read(in_x_des);
 	in_xd_des_flow = in_xd_des_port.read(in_xd_des);
+	in_xdd_des_flow = in_xdd_des_port.read(in_xdd_des);
 
 	RTT::log(RTT::Info) << name << " Start" << RTT::endlog();
 //	calculateKinematics(robot_state);
@@ -427,7 +433,7 @@ void PICController::updateHook() {
 
 	lambda_d = lambda_c;
 //	F = h_c + lambda_c * xdd_des - lambda_c*lambda_d.inverse()*(velError+posError)+( lambda_c*lambda_d.inverse() - Eigen::Matrix<float,6,6>::Identity())*F_x;
-	F = h_c + (lambda_c * xdd_des) - (-velError - posError);
+	F = h_c + (lambda_c * in_xdd_des) - (-velError - posError);
 	N = (Eigen::Matrix<float, 7, 7>::Identity()
 			- (jac_x.transpose() * lambda_c * jac_x * M_c.inverse() * P));
 	tau_0 = Kn*(-robot_state.angles)+Dn*(robot_state.velocities);
