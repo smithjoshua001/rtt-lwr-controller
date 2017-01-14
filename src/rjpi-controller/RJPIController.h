@@ -26,6 +26,7 @@
 #include <Eigen/src/Core/DenseBase.h>
 #include <rtt/OperationCaller.hpp>
 
+
 class RJPIController: public RTT::TaskContext, public ChainBase {
 public:
 	RJPIController(std::string const & name);
@@ -47,14 +48,17 @@ public:
 	RTT::InputPort<Eigen::Matrix<float, 7, 7>> in_M_port;
 	RTT::InputPort<Eigen::VectorXf> in_x_des_port;
 	RTT::InputPort<Eigen::VectorXf> in_xd_des_port;
+	RTT::InputPort<Eigen::VectorXf> in_xdd_des_port;
 
 	RTT::FlowStatus in_M_flow;
 	RTT::FlowStatus in_x_des_flow;
 	RTT::FlowStatus in_xd_des_flow;
+	RTT::FlowStatus in_xdd_des_flow;
 
 	Eigen::Matrix<float, 7, 7> in_M;
 	Eigen::VectorXf in_x_des;
 	Eigen::VectorXf in_xd_des;
+	Eigen::VectorXf in_xdd_des;
 
 	Eigen::Matrix<float, 6, 14> jac_c;
 	Eigen::Matrix<float, 14, 14> P;
@@ -77,23 +81,25 @@ public:
 	Eigen::Vector3f pos, pos_c;
 	float step_size;
 	Eigen::VectorXf quat_d, quat_c;
-	float Kp, Dp, Ko, Do;
+	Eigen::VectorXf Kp, Dp, Ko, Do;
 	float Kp_c, Dp_c, Ko_c, Do_c;
 	ChainBase dual_arm_chain;
 	bool constraint_on, simulation, traj_bool;
 	Eigen::VectorXf force;
 	void constraint_switch();
 	float squeeze_force;
+	Eigen::VectorXf g_force;
 
 	Eigen::VectorXd quat_temp;
 	Eigen::Matrix3f rot_mat_curr;
 	Eigen::Matrix3f relative_rot;
 	Eigen::Matrix3f rot_mat;
 	Eigen::Quaternionf relative_quat;
-	KDL::Rotation rot_KDL;
+	KDL::Rotation rot_KDL,rot_KDL_c;
 	Eigen::VectorXf delta_quat;
-	Eigen::VectorXf posError;
-	Eigen::VectorXf velError;
+	Eigen::VectorXf posError,poscError;
+	Eigen::VectorXf velError,velcError;
+	
 	Eigen::Matrix<float,7,7> right_M_cf;
 	Eigen::Matrix<float,7,1> right_C_cf;
 	Eigen::Matrix<float,14,14> dual_arm_M;
@@ -105,11 +111,14 @@ public:
 	Eigen::Matrix<float,14,6> jac_c_Pinv;
 	Eigen::MatrixXf identity;
 	Eigen::Matrix<float,3,1> force_c_dir;
+	Eigen::Matrix<float,3,1> center_box_offset;
 	bool em_stop;
 	 RTT::TaskContext* a_task_ptr;
  
   	// create a OperationCaller<Signature> object 'getType':
   	RTT::OperationCaller<bool(void)> stopRobot;
+	KDL::Segment box_segment;
+	KDL::Frame box_frame;
 
 };
 

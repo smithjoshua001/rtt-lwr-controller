@@ -142,7 +142,10 @@ void PICController::updateHook() {
 	in_xdd_des_flow = in_xdd_des_port.readNewest(in_xdd_des);
 
 	RTT::log(RTT::Info) << name << " Start" << RTT::endlog();
+	
+	
 	calculateKinematicsDynamics(robot_state);
+
 
 	cart_pos.M.GetQuaternion(quat_temp(0), quat_temp(1), quat_temp(2),
 			quat_temp(3));

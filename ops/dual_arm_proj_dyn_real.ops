@@ -46,13 +46,14 @@ torqueTransition.configure()
 
 
 # load TrajectoryGenerator
-#loadComponent("trajectorygenerator", "TrajectoryGen")
-#setActivity("trajectorygenerator",0.004,12,ORO_SCHED_RT)
-#trajectorygenerator.setTranslationOnly(false);
-#trajectorygenerator.setCenter(0.55,0.3,0.3)
-#trajectorygenerator.radius = 0.1
-#trajectorygenerator.preparePorts()
-#trajectorygenerator.configure()
+loadComponent("trajectorygenerator", "TrajectoryGen")
+setActivity("trajectorygenerator",0.003,12,ORO_SCHED_RT)
+trajectorygenerator.setTranslationOnly(false);
+trajectorygenerator.setCenter(0.4,0,0.35)
+trajectorygenerator.radius = 0.1
+trajectorygenerator.timescale=1.5
+trajectorygenerator.preparePorts()
+trajectorygenerator.configure()
 
 # load TrajectoryGenerator
 #loadComponent("trajectorygenerator_right", "TrajectoryGen")
@@ -84,17 +85,28 @@ seperator.addChainDOFsize(7)
 seperator.preparePorts("")
 
 
-controller.setPos(0.4,0.2,0.25)
+controller.setPos(0.4,0,0.25)
 controller.sim=false
 controller.quat_x=0.707
 controller.quat_y=0
 controller.quat_z=0
 controller.quat_w=0.707
-controller.Kp=75
-controller.Dp=1
-controller.Ko=5
-controller.Do=1
-controller.squeeze_force = -40
+controller.Kp[0]=150
+controller.Kp[1]=150
+controller.Kp[2]=150
+controller.Dp[0]=1
+controller.Dp[1]=1
+controller.Dp[2]=1
+controller.Ko[0]=10
+controller.Ko[1]=10
+controller.Ko[2]=10
+controller.Do[0]=0.1
+controller.Do[1]=0.1
+controller.Do[2]=0.1
+controller.squeeze_force = -60
+controller.g_force = 8
+controller.Ko_c = 0
+controller.Do_c =0
 connectPeers("controller","lwr_robot")
 
 right_controller.setPos(0.4,-0.1,0.25)
@@ -106,7 +118,6 @@ right_controller.Kp=50
 right_controller.Dp=5
 right_controller.Ko=15
 right_controller.Do=0.5
-
 left_controller.setPos(0.4,0.2,0.25)
 left_controller.setStepSize(0.01)
 left_controller.quat_x=0.707
@@ -132,6 +143,14 @@ connect("lwr_robot.left_full_arm_JointFeedback", "combiner.in_robotstatus_port_0
 connect("lwr_robot.right_full_arm_JointFeedback", "combiner.in_robotstatus_port_1",cp_aux)
 connect("combiner.out_robotstatus_port", "controller.controller_dual__RobotIn", cp_aux)
 
+# connect TrajectoryGenerator to PositionController
+var ConnPolicy cp_traj_posCtrl;
+connect("trajectorygenerator.out_desiredTaskSpacePosition_port", "controller.in_x_des", cp_traj_posCtrl)
+connect("trajectorygenerator.out_desiredTaskSpaceVelocity_port", "controller.in_xd_des", cp_traj_posCtrl)
+connect("trajectorygenerator.out_desiredTaskSpaceAcceleration_port", "controller.in_xdd_des", cp_traj_posCtrl)
+
+
+
 var ConnPolicy cp_jointposcontroller;
 connect("left_controller.jt_out", "s_combiner.in_robotstatus_port_0", cp_jointposcontroller)
 connect("right_controller.jt_out", "s_combiner.in_robotstatus_port_1", cp_jointposcontroller)
@@ -153,7 +172,7 @@ lwr_robot.setControlMode("left_full_arm", "JointTorqueCtrl")
 
 
 #controller command
-#trajectorygenerator.start()
+trajectorygenerator.start()
 #trajectorygenerator_right.start()
 combiner.start()
 seperator.start()

@@ -105,6 +105,7 @@ public:
 	Eigen::MatrixXf identity;
 	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_lambda_c;
 	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_lambda_c;
+
 };
 
 #endif /* PICCONTROLLER_H_ */
