@@ -24,6 +24,7 @@
 #include <string>
 #include "../kinematic-chain/ChainBase.h"
 #include <Eigen/src/Core/DenseBase.h>
+#include <rtt/OperationCaller.hpp>
 
 class RJPIController: public RTT::TaskContext, public ChainBase {
 public:
@@ -82,6 +83,33 @@ public:
 	bool constraint_on, simulation, traj_bool;
 	Eigen::VectorXf force;
 	void constraint_switch();
+	float squeeze_force;
+
+	Eigen::VectorXd quat_temp;
+	Eigen::Matrix3f rot_mat_curr;
+	Eigen::Matrix3f relative_rot;
+	Eigen::Matrix3f rot_mat;
+	Eigen::Quaternionf relative_quat;
+	KDL::Rotation rot_KDL;
+	Eigen::VectorXf delta_quat;
+	Eigen::VectorXf posError;
+	Eigen::VectorXf velError;
+	Eigen::Matrix<float,7,7> right_M_cf;
+	Eigen::Matrix<float,7,1> right_C_cf;
+	Eigen::Matrix<float,14,14> dual_arm_M;
+	Eigen::Matrix<float,14,1> dual_arm_C;
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_jac_c;
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_lambda_c;
+	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_jac_c;
+	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_lambda_c;
+	Eigen::Matrix<float,14,6> jac_c_Pinv;
+	Eigen::MatrixXf identity;
+	Eigen::Matrix<float,3,1> force_c_dir;
+	bool em_stop;
+	 RTT::TaskContext* a_task_ptr;
+ 
+  	// create a OperationCaller<Signature> object 'getType':
+  	RTT::OperationCaller<bool(void)> stopRobot;
 
 };
 

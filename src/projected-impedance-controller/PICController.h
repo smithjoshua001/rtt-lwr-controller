@@ -85,6 +85,26 @@ public:
 	bool constraint_on,simulation, traj_bool;
 	Eigen::VectorXf force;
 	double start_time, end_time;
+
+	//Extra params
+	Eigen::VectorXd quat_temp;
+	Eigen::Matrix3f rot_mat_curr;
+	Eigen::Quaternionf eigen_quat;
+	Eigen::VectorXf delta_quat;
+	Eigen::VectorXf posError;
+	Eigen::Matrix3f rot_mat;
+	KDL::Rotation rot_KDL;
+	Eigen::Matrix3f relative_rot;
+	Eigen::Quaternionf relative_quat;
+	Eigen::MatrixXf in_M_Pinv;
+	Eigen::VectorXf velError;
+	Eigen::VectorXf xdd;
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_jac_c;
+	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_jac_c;
+	Eigen::MatrixXf jac_c_Pinv;
+	Eigen::MatrixXf identity;
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_lambda_c;
+	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_lambda_c;
 };
 
 #endif /* PICCONTROLLER_H_ */

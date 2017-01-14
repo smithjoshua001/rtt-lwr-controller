@@ -29,6 +29,7 @@ setActivity("trajectorygenerator",0.004,12,ORO_SCHED_RT)
 trajectorygenerator.setTranslationOnly(false);
 trajectorygenerator.setCenter(0.4,0.3,0)
 trajectorygenerator.radius = 0.1
+trajectorygenerator.timescale=1.5
 trajectorygenerator.preparePorts()
 trajectorygenerator.configure()
 
@@ -56,9 +57,9 @@ left_controller.quat_x=0
 left_controller.quat_y=1
 left_controller.quat_z=0
 left_controller.quat_w=0
-left_controller.Kp=100
+left_controller.Kp=150
 left_controller.Dp=10
-left_controller.Ko=10
+left_controller.Ko=80
 left_controller.Do=1
 left_controller.Kn = 0
 left_controller.Dn = 0
