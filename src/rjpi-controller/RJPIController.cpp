@@ -39,14 +39,23 @@ RJPIController::RJPIController(std::string const & name) :
 	F_x.setZero();
 	tau_c.setZero();
 	tau_0.setZero();
-	Kp = 10;
-	Dp = 0.2;
-	Ko = 10;
-	Do = 0.2;
+	//Kp = 10;
+	//Dp = 0.2;
+	//Ko = 10;
+	//Do = 0.2;
+	Kp.resize(3);
+	Dp.resize(3);
+	Ko.resize(3);
+	Do.resize(3);
+	Kp.setZero();
+	Dp.setZero();
+	Ko.setZero();
+	Do.setZero();
 	Kp_c = 10;
 	Dp_c = 0.2;
 	Ko_c = 10;
 	Do_c = 0.2;
+	em_stop = false;
 	properties()->addProperty("quat_x", quat_d(0));
 	properties()->addProperty("quat_y", quat_d(1));
 	properties()->addProperty("quat_z", quat_d(2));
@@ -71,7 +80,12 @@ RJPIController::RJPIController(std::string const & name) :
 	properties()->addProperty("x_force", force(0));
 	properties()->addProperty("y_force", force(1));
 	properties()->addProperty("z_force", force(2));
+	properties()->addProperty("squeeze_force", squeeze_force);
+	squeeze_force = 0;
 	constraint_on = true;
+	g_force.resize(6);
+	g_force.setZero();
+	properties()->addProperty("g_force", g_force(2));
 
 	//ports()->addPort(robot_state_port);
 	//out_angles_var.angles.resize(DOFsize);
@@ -80,6 +94,18 @@ RJPIController::RJPIController(std::string const & name) :
 	//out_angles_port.setDataSample(out_angles_var);
 	//ports()->addPort(out_angles_port);
 
+	quat_temp.resize(4);
+	delta_quat.resize(3);
+	posError.resize(6);
+	velError.resize(6);
+	poscError.resize(6);
+	velcError.resize(6);
+	svd_solver_jac_c = Eigen::JacobiSVD<Eigen::MatrixXf>(jac_c.rows(),jac_c.cols());
+	svd_solver_lambda_c = Eigen::JacobiSVD<Eigen::MatrixXf>(lambda_c.rows(),lambda_c.cols());
+	singular_values_jac_c.resize(6);
+	singular_values_lambda_c.resize(6);
+	identity = Eigen::Matrix<float,14,14>::Identity();
+	
 }
 
 RJPIController::~RJPIController() {
@@ -87,6 +113,7 @@ RJPIController::~RJPIController() {
 }
 
 bool RJPIController::configureHook() {
+	
 	ports()->addPort(robot_state_port);
 	out_angles_var.angles.resize(DOFsize);
 	out_angles_var.angles.setZero();
@@ -113,9 +140,18 @@ bool RJPIController::configureHook() {
 	in_xd_des_port.setName("in_xd_des");
 	in_xd_des_flow = RTT::NoData;
 	ports()->addPort(in_xd_des_port);
+	in_xdd_des.resize(6);
+	in_xdd_des.setZero();
+	in_xdd_des_port.setName("in_xdd_des");
+	in_xdd_des_flow = RTT::NoData;
+	ports()->addPort(in_xdd_des_port);
 
 	ports()->addPort(dual_arm_chain.robot_state_port);
-
+	rot_KDL = KDL::Rotation::Quaternion(quat_d(0), quat_d(1),
+				quat_d(2), quat_d(3));
+	rot_KDL_c = KDL::Rotation::Quaternion(-1,0,0,0);
+	a_task_ptr = getPeer("lwr_robot");
+	stopRobot= a_task_ptr->getOperation("stopRobot");
 	return true;
 
 }
@@ -140,23 +176,41 @@ void RJPIController::updateHook() {
 	dual_arm_chain.robot_state.velocities.head<7>().reverseInPlace();
 
 	in_M_flow = in_M_port.read(in_M);
-//	if (in_M_flow != RTT::NewData) {
-//		return;
-//	}
 	in_x_des_flow = in_x_des_port.read(in_x_des);
 	in_xd_des_flow = in_xd_des_port.read(in_xd_des);
+	in_xdd_des_flow = in_xdd_des_port.read(in_xdd_des);
 
 	RTT::log(RTT::Info) << name << " Start" << RTT::endlog();
 //	calculateKinematics(robot_state);
-	calculateKinematicsDynamics(robot_state);
+	
 	dual_arm_chain.calculateKinematicsDynamics(dual_arm_chain.robot_state);
+	if(constraint_on){
+		force_c_dir[0] = dual_arm_chain.cart_pos.p.data[0];
+		force_c_dir[1] = dual_arm_chain.cart_pos.p.data[1];
+		force_c_dir[2] = dual_arm_chain.cart_pos.p.data[2];
+		center_box_offset = force_c_dir/2;
+		box_frame.p.data[0] = center_box_offset[0];
+		box_frame.p.data[1] = center_box_offset[1];
+		box_frame.p.data[2] = center_box_offset[2];
+	
+		box_segment = KDL::Segment("box_translation",KDL::Joint(KDL::Joint::None),box_frame);
+		activeChainBox_KDL = activeChain_KDL;
+		activeChainBox_KDL.addSegment(box_segment);
+		jnt_to_jac_solver.reset(new KDL::ChainJntToJacSolver(activeChainBox_KDL));
+		jnt_to_jacDot_solver.reset(
+			new KDL::ChainJntToJacDotSolver(activeChainBox_KDL));
+		jnt_to_cart_pos_solver.reset(
+			new KDL::ChainFkSolverPos_recursive(activeChainBox_KDL));
+		jnt_to_cart_vel_solver.reset(
+			new KDL::ChainFkSolverVel_recursive(activeChainBox_KDL));
+	}
+	calculateKinematicsDynamics(robot_state);
 	dual_arm_chain.robot_state.angles.head<7>().reverseInPlace();
 	dual_arm_chain.robot_state.velocities.head<7>().reverseInPlace();
 	//RTT::log(RTT::Info) << cart_pos.p << RTT::endlog();
-	Eigen::VectorXd quat_temp(4);
-	cart_pos.M.GetQuaternion(quat_temp(0), quat_temp(1), quat_temp(2),
-			quat_temp(3));
-	Eigen::Matrix3f rot_mat_curr;
+	
+	
+	
 	rot_mat_curr(0, 0) = cart_pos.M.data[0];
 	rot_mat_curr(0, 1) = cart_pos.M.data[1];
 	rot_mat_curr(0, 2) = cart_pos.M.data[2];
@@ -166,25 +220,19 @@ void RJPIController::updateHook() {
 	rot_mat_curr(2, 0) = cart_pos.M.data[6];
 	rot_mat_curr(2, 1) = cart_pos.M.data[7];
 	rot_mat_curr(2, 2) = cart_pos.M.data[8];
-	Eigen::Quaternionf eigen_quat(rot_mat_curr);
-	//RTT::log(RTT::Info) << eigen_quat.vec() << ", " << quat_temp
-	//<< "\nCOMPARISON TEST" << RTT::endlog();
-//	//RTT::log(RTT::Info)<<eigen_quat(0)-quat_temp(0)<<","<<eigen_quat(1)-quat_temp(1)<<", "<<eigen_quat(2)-quat_temp(2)<<", "<<eigen_quat(3)-quat_temp(3)<<"\n QUATERNION ERROR"<<RTT::endlog();
 
-	Eigen::VectorXf quat = quat_temp.cast<float>();
 	quat_d.normalize();
 
-	Eigen::VectorXf delta_quat(3);
+	
 
 	////RTT::log(RTT::Info)<<pos<<RTT::endlog();
-	Eigen::VectorXf posError(6);
+	
 	if (in_x_des_flow == RTT::NoData || !traj_bool) {
 		posError[0] = pos[0] - cart_pos.p.data[0];
 		posError[1] = pos[1] - cart_pos.p.data[1];
 		posError[2] = pos[2] - cart_pos.p.data[2];
-		KDL::Rotation rot_KDL = KDL::Rotation::Quaternion(quat_d(0), quat_d(1),
-				quat_d(2), quat_d(3));
-		Eigen::Matrix3f rot_mat;
+		
+		
 		rot_mat(0, 0) = rot_KDL.data[0];
 		rot_mat(0, 1) = rot_KDL.data[1];
 		rot_mat(0, 2) = rot_KDL.data[2];
@@ -197,8 +245,8 @@ void RJPIController::updateHook() {
 		RTT::log(RTT::Info) << name << " rot_mat: " << rot_mat << RTT::endlog();
 		RTT::log(RTT::Info) << name << " rot_mat_curr: " << rot_mat_curr
 				<< RTT::endlog();
-		Eigen::Matrix3f relative_rot = rot_mat.transpose() * rot_mat_curr;
-		Eigen::Quaternionf relative_quat(relative_rot);
+		relative_rot = rot_mat.transpose() * rot_mat_curr;
+		relative_quat=relative_rot;
 		delta_quat = relative_quat.vec().cast<float>();
 
 		//RTT::log(RTT::Info) << rot_mat << RTT::endlog();
@@ -211,9 +259,6 @@ void RJPIController::updateHook() {
 		posError[0] = in_x_des[0] - cart_pos.p.data[0];
 		posError[1] = in_x_des[1] - cart_pos.p.data[1];
 		posError[2] = in_x_des[2] - cart_pos.p.data[2];
-		KDL::Rotation rot_KDL = KDL::Rotation::Quaternion(quat_d(0), quat_d(1),
-				quat_d(2), quat_d(3));
-		Eigen::Matrix3f rot_mat;
 		rot_mat(0, 0) = rot_KDL.data[0];
 		rot_mat(0, 1) = rot_KDL.data[1];
 		rot_mat(0, 2) = rot_KDL.data[2];
@@ -223,38 +268,73 @@ void RJPIController::updateHook() {
 		rot_mat(2, 0) = rot_KDL.data[6];
 		rot_mat(2, 1) = rot_KDL.data[7];
 		rot_mat(2, 2) = rot_KDL.data[8];
-		Eigen::Matrix3f relative_rot = rot_mat.transpose() * rot_mat_curr;
-		Eigen::Quaternionf relative_quat(relative_rot);
+		relative_rot = rot_mat.transpose() * rot_mat_curr;
+		relative_quat=relative_rot;
 		delta_quat = relative_quat.vec().cast<float>();
 		posError.tail<3>() = -rot_mat * delta_quat;
 	}
 
-	RTT::log(RTT::Info) << name << " posError1: " << posError << RTT::endlog();
-	posError.head<3>() *= Kp;
-	posError.tail<3>() *= Ko;
+	posError.head<3>() = posError.head<3>().cwiseProduct(Kp);
+	posError.tail<3>() = posError.tail<3>().cwiseProduct(Ko);
 
-	RTT::log(RTT::Info) << name << " posError2: " << posError << RTT::endlog();
-	Eigen::VectorXf velError(6);
+	
 	if (in_xd_des_flow == RTT::NoData || !traj_bool) {
 		velError.head<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
-				cart_vel.GetTwist().vel.data).cast<float>() * -Dp;
+				cart_vel.GetTwist().vel.data).cast<float>();
 		velError.tail<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
-				cart_vel.GetTwist().rot.data).cast<float>() * -Do;
+				cart_vel.GetTwist().rot.data).cast<float>();
+		velError.head<3>() = velError.head<3>().cwiseProduct(-Dp);
+		velError.tail<3>() = velError.tail<3>().cwiseProduct(-Do);
 	} else {
 		velError.head<3>() = ((Eigen::Map<Eigen::Array<double, 3, 1>>(
 				cart_vel.GetTwist().vel.data).cast<float>()));
 		velError.head<3>() = in_xd_des.head<3>() - velError.head<3>();
-		velError.head<3>() *= Dp;
+		velError.head<3>()= velError.head<3>().cwiseProduct(Dp);
 		velError.tail<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
-				cart_vel.GetTwist().rot.data).cast<float>() * -Do;
+				cart_vel.GetTwist().rot.data).cast<float>();
+		velError.tail<3>() = velError.tail<3>().cwiseProduct(-Do);
 	}
+	if (in_xdd_des_flow == RTT::NoData || !traj_bool) {
+		in_xdd_des.setZero();
+	}
+	poscError.setZero();
+	velcError.setZero();	
+	rot_mat_curr(0, 0) = dual_arm_chain.cart_pos.M.data[0];
+	rot_mat_curr(0, 1) = dual_arm_chain.cart_pos.M.data[1];
+	rot_mat_curr(0, 2) = dual_arm_chain.cart_pos.M.data[2];
+	rot_mat_curr(1, 0) = dual_arm_chain.cart_pos.M.data[3];
+	rot_mat_curr(1, 1) = dual_arm_chain.cart_pos.M.data[4];
+	rot_mat_curr(1, 2) = dual_arm_chain.cart_pos.M.data[5];
+	rot_mat_curr(2, 0) = dual_arm_chain.cart_pos.M.data[6];
+	rot_mat_curr(2, 1) = dual_arm_chain.cart_pos.M.data[7];
+	rot_mat_curr(2, 2) = dual_arm_chain.cart_pos.M.data[8];
+	rot_mat(0, 0) = rot_KDL_c.data[0];
+	rot_mat(0, 1) = rot_KDL_c.data[1];
+	rot_mat(0, 2) = rot_KDL_c.data[2];
+	rot_mat(1, 0) = rot_KDL_c.data[3];
+	rot_mat(1, 1) = rot_KDL_c.data[4];
+	rot_mat(1, 2) = rot_KDL_c.data[5];
+	rot_mat(2, 0) = rot_KDL_c.data[6];
+	rot_mat(2, 1) = rot_KDL_c.data[7];
+	rot_mat(2, 2) = rot_KDL_c.data[8];
+	relative_rot = rot_mat.transpose() * rot_mat_curr;
+	relative_quat=relative_rot;
+	delta_quat = relative_quat.vec().cast<float>();
+		//RTT::log(RTT::Info) << rot_mat << RTT::endlog();
+		RTT::log(RTT::Info) << -rot_mat * delta_quat << ":delta_quat"
+		<< RTT::endlog();
 
-	Eigen::VectorXf xdd(6);
+	poscError.tail<3>() = -rot_mat * delta_quat;
 
-	xdd = posError + velError;
+	poscError.tail<3>() *= Ko_c;
+	poscError(5) *= 0;
+	velcError.tail<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
+			 dual_arm_chain.cart_vel.GetTwist().rot.data).cast<float>() * -Do_c;
+	velcError(5) *= 0;
+
 	dual_arm_chain.jointStates_KDL.q.data.head<7>().reverseInPlace();
 	dual_arm_chain.jointStates_KDL.qdot.data.head<7>().reverseInPlace();
-
+	
 	model_cf.calc_inertia_matrix(M_cf_array,
 			dual_arm_chain.jointStates_KDL.q.data.head<7>().data());
 	M_cf = Eigen::Map<Eigen::MatrixXd>(*M_cf_array, 7, 7).cast<float>();
@@ -266,14 +346,14 @@ void RJPIController::updateHook() {
 
 	model_cf.calc_inertia_matrix(M_cf_array,
 			dual_arm_chain.jointStates_KDL.q.data.tail<7>().data());
-	Eigen::MatrixXf right_M_cf =
+	right_M_cf =
 			Eigen::Map<Eigen::MatrixXd>(*M_cf_array, 7, 7).cast<float>();
 	model_cf.calc_coriolis_matrix(C_cf_array,
 			dual_arm_chain.jointStates_KDL.q.data.tail<7>().data(),
 			dual_arm_chain.jointStates_KDL.qdot.data.tail<7>().data());
-	Eigen::VectorXf right_C_cf = (Eigen::Map<Eigen::MatrixXd>(*C_cf_array, 7, 7)
+	right_C_cf = (Eigen::Map<Eigen::MatrixXd>(*C_cf_array, 7, 7)
 			* dual_arm_chain.jointStates_KDL.qdot.data.tail<7>()).cast<float>();
-	Eigen::MatrixXf dual_arm_M(14, 14);
+	
 	dual_arm_M.setZero();
 	if (!simulation) {
 		dual_arm_M.block<7, 7>(0, 0) = M_cf;
@@ -283,7 +363,7 @@ void RJPIController::updateHook() {
 				dual_arm_chain.M.block<7, 7>(0, 0).reverse();
 		dual_arm_M.block<7, 7>(7, 7) = dual_arm_chain.M.block<7, 7>(7, 7);
 	}
-	Eigen::VectorXf dual_arm_C(14);
+	
 	if (!simulation) {
 		dual_arm_C.head<7>() = C_cf;
 		dual_arm_C.tail<7>() = right_C_cf;
@@ -291,92 +371,28 @@ void RJPIController::updateHook() {
 		dual_arm_C.head<7>() = dual_arm_chain.C.head<7>().reverse();
 		dual_arm_C.tail<7>() = dual_arm_chain.C.tail<7>();
 	}
-//	Eigen::VectorXf dual_pos_error(12);
-//	dual_pos_error.head<6>() = posError;
-//
-////	Eigen::Matrix3f rot_mat_curr;
-//	rot_mat_curr(0, 0) = dual_arm_chain.cart_pos.M.data[0];
-//	rot_mat_curr(0, 1) = dual_arm_chain.cart_pos.M.data[1];
-//	rot_mat_curr(0, 2) = dual_arm_chain.cart_pos.M.data[2];
-//	rot_mat_curr(1, 0) = dual_arm_chain.cart_pos.M.data[3];
-//	rot_mat_curr(1, 1) = dual_arm_chain.cart_pos.M.data[4];
-//	rot_mat_curr(1, 2) = dual_arm_chain.cart_pos.M.data[5];
-//	rot_mat_curr(2, 0) = dual_arm_chain.cart_pos.M.data[6];
-//	rot_mat_curr(2, 1) = dual_arm_chain.cart_pos.M.data[7];
-//	rot_mat_curr(2, 2) = dual_arm_chain.cart_pos.M.data[8];
-//	eigen_quat = Eigen::Quaternionf(rot_mat_curr);
-//
-//	posError[0] = pos_c[0] - dual_arm_chain.cart_pos.p.data[0];
-//	posError[1] = pos_c[1] - dual_arm_chain.cart_pos.p.data[1];
-//	posError[2] = pos_c[2] - dual_arm_chain.cart_pos.p.data[2];
-//	KDL::Rotation rot_KDL = KDL::Rotation::Quaternion(quat_d(0), quat_d(1),
-//			quat_d(2), quat_d(3));
-//	Eigen::Matrix3f rot_mat;
-//	rot_mat(0, 0) = rot_KDL.data[0];
-//	rot_mat(0, 1) = rot_KDL.data[1];
-//	rot_mat(0, 2) = rot_KDL.data[2];
-//	rot_mat(1, 0) = rot_KDL.data[3];
-//	rot_mat(1, 1) = rot_KDL.data[4];
-//	rot_mat(1, 2) = rot_KDL.data[5];
-//	rot_mat(2, 0) = rot_KDL.data[6];
-//	rot_mat(2, 1) = rot_KDL.data[7];
-//	rot_mat(2, 2) = rot_KDL.data[8];
-//	Eigen::Matrix3f relative_rot = rot_mat.transpose() * rot_mat_curr;
-//	Eigen::Quaternionf relative_quat(relative_rot);
-//	delta_quat = relative_quat.vec().cast<float>();
-//	posError.tail<3>() = -rot_mat * delta_quat;
-//
-//	posError.head<3>() *= Kp_c;
-//	posError.tail<3>() *= Ko_c;
-//	dual_pos_error.tail<6>() = posError;
-//
-//	Eigen::VectorXf dual_vel_error(12);
-//	dual_vel_error.head<6>() = velError;
-//
-//	if (in_xd_des_flow == RTT::NoData) {
-//		velError.head<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
-//				dual_arm_chain.cart_vel.GetTwist().vel.data).cast<float>()
-//				* -Dp_c;
-//		velError.tail<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
-//				dual_arm_chain.cart_vel.GetTwist().rot.data).cast<float>()
-//				* -Do_c;
-//	} else {
-//		velError.head<3>() = ((Eigen::Map<Eigen::Array<double, 3, 1>>(
-//				dual_arm_chain.cart_vel.GetTwist().vel.data).cast<float>()));
-//		velError.head<3>() = in_xd_des.head<3>() - velError.head<3>();
-//		velError.head<3>() *= Dp_c;
-//		velError.tail<3>() = Eigen::Map<Eigen::Array<double, 3, 1>>(
-//				dual_arm_chain.cart_vel.GetTwist().rot.data).cast<float>()
-//				* -Do_c;
-//	}
-//	dual_vel_error.tail<6>() = velError;
-
-	//RTT::log(RTT::Info) << quat_temp <<": QUATERNION VALUE" << RTT::endlog();
-	//RTT::log(RTT::Info) << in_M<<":\n"<<M <<": IN_M VALUE" << RTT::endlog();
-	//RTT::log(RTT::Info) << M_cf<<": M_cf VALUE" << RTT::endlog();
-	//RTT::log(RTT::Info) << C_cf<<": C_cf VALUE" << RTT::endlog();
+	
 
 	jac_x.setZero();
 	jacd_x.setZero();
 	jac_x.block<6, 7>(0, 0) = jac;
 	jacd_x.block<6, 7>(0, 0) = jacd;
-	//jac_x.block<6, 7>(0, 0).rowwise().reverseInPlace();
-	//jacd_x.block<6, 7>(0, 0).rowwise().reverseInPlace();
-	//	for (int i = 0; i < 6; i++) {
-	//		jac_x.block<1, 7>(i, 0).reverseInPlace();
-	//		jacd_x.block<1, 7>(i, 0).reverseInPlace();
-	//	}
+	dual_arm_C += jac_x.transpose()*g_force;
+
 	//jac_c=vec*jac; FOR CALCULATING jac_c
 	jac_c.setZero();
 	tau_c.setZero();
-	Eigen::VectorXf POerror(6);
+	/*Eigen::VectorXf POerror(6);
 	POerror.setZero();
 	Eigen::VectorXf VOerror(6);
-	VOerror.setZero();
+	VOerror.setZero();*/
 	if (constraint_on) {
 		jac_c = dual_arm_chain.jac;
 		for (int i = 0; i < 6; i++) {
 			jac_c.block<1, 7>(i, 0).reverseInPlace();
+		}
+		for (int i = 0; i < 6; i++) {
+			dual_arm_chain.jacd.block<1, 7>(i, 0).reverseInPlace();
 		}
 
 //		POerror.tail<3>() = -rot_mat * delta_quat;
@@ -386,11 +402,10 @@ void RJPIController::updateHook() {
 			// + POerror + VOerror);
 	}
 
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_jac_c(jac_c.rows(),
-			jac_c.cols());
+
 	svd_solver_jac_c.compute(jac_c, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
-	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_jac_c =
+	singular_values_jac_c =
 			svd_solver_jac_c.singularValues();
 	for (int i = 0; i < singular_values_jac_c.size(); i++) {
 		if (singular_values_jac_c(i) < 1.e-06) {
@@ -400,29 +415,28 @@ void RJPIController::updateHook() {
 		}
 	}
 
-	Eigen::MatrixXf jac_c_Pinv =
+	jac_c_Pinv =
 			svd_solver_jac_c.matrixV().leftCols(singular_values_jac_c.size())
 					* singular_values_jac_c.asDiagonal()
 					* svd_solver_jac_c.matrixU().leftCols(
 							singular_values_jac_c.size()).transpose();
 
-	P = Eigen::Matrix<float, 14, 14>::Identity() - (jac_c_Pinv * jac_c);
+	P = identity - (jac_c_Pinv * jac_c);
 	R = -jac_c_Pinv*dual_arm_chain.jacd;
 	Pd = R*P+P*R.transpose();
 //	if (simulation) {
 //		M_c = (P * dual_arm_chain.M) + Eigen::Matrix<float, 14, 14>::Identity()
 //				- P;
 //	} else {
-		M_c = (P * dual_arm_M) + Eigen::Matrix<float, 14, 14>::Identity() - P;
+		M_c = (P * dual_arm_M) + identity - P;
 //	}
 
 	lambda_c = (jac_x * (M_c.inverse()) * P * (jac_x.transpose()));
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd_solver_lambda_c(lambda_c.rows(),
-			lambda_c.cols());
+	
 	svd_solver_lambda_c.compute(lambda_c,
 			Eigen::ComputeFullU | Eigen::ComputeFullV);
 
-	Eigen::JacobiSVD<Eigen::MatrixXf>::SingularValuesType singular_values_lambda_c =
+	singular_values_lambda_c =
 			svd_solver_lambda_c.singularValues();
 	for (int i = 0; i < singular_values_lambda_c.size(); i++) {
 		if (singular_values_lambda_c(i) < 1.e-06) {
@@ -444,16 +458,33 @@ void RJPIController::updateHook() {
 					- (lambda_c * jacd_x * dual_arm_chain.robot_state.velocities);
 	lambda_d = lambda_c;
 //	F = h_c + lambda_c * xdd_des - lambda_c*lambda_d.inverse()*(velError+posError)+( lambda_c*lambda_d.inverse() - Eigen::Matrix<float,6,6>::Identity())*F_x;
-	F = h_c + (lambda_c * xdd_des) - (-velError - posError);
+	F = h_c + (lambda_c * in_xdd_des) - (-velError - posError);
 	RTT::log(RTT::Info) << name << " posError: " << posError << RTT::endlog();
-	N = (Eigen::Matrix<float, 14, 14>::Identity()
+	N = (identity
 			- (jac_x.transpose() * lambda_c * jac_x * M_c.inverse() * P));
 	RTT::log(RTT::Info) << name << " F: " << F << RTT::endlog();
 	out_torques_var.torques = (P * jac_x.transpose() * F) + P * N * tau_0;
+
+
 	if(constraint_on){
+		
+		force_c_dir = force_c_dir/force_c_dir.norm();
+		force_c_dir *= squeeze_force;
+		force.head<3>() = force_c_dir;
+		force = force - (-velcError-poscError);	
 		tau_c = dual_arm_C + dual_arm_M*M_c.inverse()*((P*out_torques_var.torques)-(P*dual_arm_C)+(Pd*dual_arm_chain.robot_state.velocities)) +jac_c.transpose() * (force);
+
+		//tau_c=jac_c.transpose() * (force);
+
 		RTT::log(RTT::Info)<<"tau_c:"<<tau_c<<RTT::endlog();
-		out_torques_var.torques += ((Eigen::Matrix<float, 14, 14>::Identity() - P) * tau_c);
+
+		out_torques_var.torques += ((identity - P) * tau_c);
+	}
+	
+	if((force_c_dir.norm()<0.2&&force_c_dir.norm()>0.01)||em_stop){
+		em_stop = true;
+		stopRobot();
+		out_torques_var.torques.setZero();
 	}
 //	out_torques_var.torques.head<7>().reverseInPlace();
 

@@ -50,7 +50,7 @@ TrajectoryGen::TrajectoryGen(std::string const & name) : RTT::TaskContext(name),
 //    radius = 0.15;
 
     // board parallel to floor
-    double boardAngle_deg = 0;
+    double boardAngle_deg = 90;
     double boardAngle_rad = boardAngle_deg / 360 * 2 * M_PI;
     BoardRot.fill(0);
     BoardRot(0,0) = cos(boardAngle_rad);
@@ -64,7 +64,7 @@ TrajectoryGen::TrajectoryGen(std::string const & name) : RTT::TaskContext(name),
     BoardTransl(2) = 0.3;
 
     TipOrientation(0) = 0;
-    TipOrientation(1) = -M_PI - boardAngle_rad;
+    TipOrientation(1) = -M_PI;// - boardAngle_rad;
     TipOrientation(2) = 0;
     radius = 0.1;
 }
@@ -112,7 +112,7 @@ void TrajectoryGen::updateHook() {
 
     out_desiredTaskSpacePosition_port.write(out_desiredTaskSpacePosition_var);
     out_desiredTaskSpaceVelocity_port.write(out_desiredTaskSpaceVelocity_var);
-//    out_desiredTaskSpaceAcceleration_port.write(out_desiredTaskSpaceAcceleration_var);
+    out_desiredTaskSpaceAcceleration_port.write(out_desiredTaskSpaceAcceleration_var);
     //Eigen::VectorXf zero_vec;
     //    zero_vec.resize(6);
     //    zero_vec<<BoardTransl,0,0,0;

@@ -52,7 +52,7 @@ public:
 	std::string xml_model, activeChain, base_name, tip_name;
 	KDLParser p;
 	KDL::Tree robot_tree;
-	KDL::Chain activeChain_KDL;
+	KDL::Chain activeChainBox_KDL,activeChain_KDL;
 	KDL::Vector gravity_vector;
 	boost::shared_ptr<KDL::ChainDynParam> id_solver;
 	KDL::JntArrayVel jointStates_KDL;

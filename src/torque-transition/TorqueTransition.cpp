@@ -41,8 +41,8 @@ void TorqueTransition::updateHook() {
     // this is the actual body of a component. it is called on each cycle
     if (in_torquesA_port.connected() && in_torquesB_port.connected()) {
         // read data and save state of data into "Flow", which can be "NewData", "OldData" or "NoData".
-        in_torquesA_flow = in_torquesA_port.read(in_torquesA_var);
-        in_torquesB_flow = in_torquesB_port.read(in_torquesB_var);
+        in_torquesA_flow = in_torquesA_port.readNewest(in_torquesA_var);
+        in_torquesB_flow = in_torquesB_port.readNewest(in_torquesB_var);
     } else {
         // handle the situation
     }

@@ -62,6 +62,7 @@ bool ChainBase::selectKinematicChain(const std::string& chainName) {
 //		return false;
 //	}
 	DOFsize = activeChain_KDL.getNrOfJoints();
+	activeChainBox_KDL = activeChain_KDL;
 	std::cout<<DOFsize<<"DOFS!!!!!!\n";
 
 	jnt_to_jac_solver.reset(new KDL::ChainJntToJacSolver(activeChain_KDL));
@@ -151,11 +152,11 @@ void ChainBase::calculateKinematics(
 	jointStates_KDL.q.data = jointState.angles.cast<double>();
 	jointStates_KDL.qdot.data = jointState.velocities.cast<double>();
 	jnt_to_jac_solver->JntToJac(jointStates_KDL.q, jac_kdl,
-			activeChain_KDL.getNrOfSegments());
+			activeChainBox_KDL.getNrOfSegments());
 	jnt_to_cart_pos_solver->JntToCart(jointStates_KDL.q, cart_pos,
-			activeChain_KDL.getNrOfSegments());
+			activeChainBox_KDL.getNrOfSegments());
 	jnt_to_cart_vel_solver->JntToCart(jointStates_KDL, cart_vel,
-				activeChain_KDL.getNrOfSegments());
+				activeChainBox_KDL.getNrOfSegments());
 	jac = jac_kdl.data.cast<float>();
 
 }
@@ -171,14 +172,14 @@ void ChainBase::calculateKinematicsDynamics(
 	C = C_kdl.data.cast<float>();
 	G = G_kdl.data.cast<float>();
 	jnt_to_jac_solver->JntToJac(jointStates_KDL.q, jac_kdl,
-			activeChain_KDL.getNrOfSegments());
+			activeChainBox_KDL.getNrOfSegments());
 	jnt_to_jacDot_solver->JntToJacDot(jointStates_KDL, jacd_kdl,
-			activeChain_KDL.getNrOfSegments());
+			activeChainBox_KDL.getNrOfSegments());
 
 	jnt_to_cart_pos_solver->JntToCart(jointStates_KDL.q, cart_pos,
-			activeChain_KDL.getNrOfSegments());
+			activeChainBox_KDL.getNrOfSegments());
 	jnt_to_cart_vel_solver->JntToCart(jointStates_KDL, cart_vel,
-			activeChain_KDL.getNrOfSegments());
+			activeChainBox_KDL.getNrOfSegments());
 	jac = jac_kdl.data.cast<float>();
 	jacd = jacd_kdl.data.cast<float>();
 	if(DOFsize==7){
