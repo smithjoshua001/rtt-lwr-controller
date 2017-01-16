@@ -61,8 +61,9 @@ public:
 	Eigen::VectorXf in_xdd_des;
 
 	Eigen::Matrix<float,6,7> jac_c;
+	Eigen::Matrix<float,6,7> jacd_c;
 	Eigen::Matrix<float,7,7> P;
-	Eigen::Matrix<float,7,7> Pd;
+	Eigen::Matrix<float,7,7> Pd,R;
 	Eigen::Matrix<float,7,7> M_c,N;
 	Eigen::Matrix<float,6,7> jac_x;
 	Eigen::Matrix<float,6,7> jacd_x;

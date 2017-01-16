@@ -74,6 +74,9 @@ public:
 	kukaLWRModel model_cf;
 	double M_cf_array[7][7], C_cf_array[7][7];
 	
+	KDL::Segment seg;
+	KDL::Frame frame;
+
 };
 
 #endif /* KINEMATIC_CHAIN_CHAINBASE_H_ */

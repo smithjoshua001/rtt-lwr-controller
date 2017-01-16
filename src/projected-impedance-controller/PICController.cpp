@@ -349,6 +349,10 @@ void PICController::updateHook() {
 		jac_c.row(0).setZero();
 		jac_c.row(1).setZero();
 		jac_c.row(5).setZero();
+		jacd_c = jacd;
+		jacd_c.row(0).setZero();
+				jacd_c.row(1).setZero();
+				jacd_c.row(5).setZero();
 		jac_x.row(2).setZero();
 		jac_x.row(3).setZero();
 		jac_x.row(4).setZero();
@@ -383,6 +387,8 @@ void PICController::updateHook() {
 							singular_values_jac_c.size()).transpose();
 
 	P = Eigen::Matrix<float, 7, 7>::Identity() - (jac_c_Pinv * jac_c);
+	R = -jac_c_Pinv*jacd_c;
+		Pd = R*P+P*R.transpose();
 	if(simulation){
 		M_c = (P * M) + Eigen::Matrix<float, 7, 7>::Identity() - P;
 	}else{
