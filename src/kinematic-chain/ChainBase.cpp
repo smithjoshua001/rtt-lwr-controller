@@ -96,11 +96,6 @@ bool ChainBase::selectKinematicChain(const std::string& chainName) {
 	robot_state.angles.setZero();
 	robot_state.torques.setZero();
 	robot_state.velocities.setZero();
-
-	seg = KDL::Segment("temp",KDL::Joint(KDL::Joint::None),frame);
-	RTT::log(RTT::Error)<<"FRAME POS: "<<seg.getFrameToTip().p<<RTT::endlog();
-	frame.p.data[2] = 0.4;
-	RTT::log(RTT::Error)<<"FRAME POS AFTER: "<<seg.getFrameToTip().p<<RTT::endlog();
 	return true;
 }
 

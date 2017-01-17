@@ -79,18 +79,84 @@ controller.setBaseAndTip("krc_base","left_lwr_tool_link")
 controller.setBaseAndTip_dual("left_lwr_tool_link","right_lwr_tool_link")
 controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
 controller.loadURDFAndSRDF_dual(path_model_urdf, path_model_srdf)
-controller.configure()
+
 
 loadComponent("left_controller", "PICController")
 setActivity("left_controller",0.1,10,ORO_SCHED_OTHER)
 left_controller.setBaseAndTip("krc_base","left_lwr_tool_link")
 left_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
-left_controller.configure()
+
 loadComponent("right_controller", "PICController")
 setActivity("right_controller",0.1,10,ORO_SCHED_OTHER)
 right_controller.setBaseAndTip("krc_base","right_lwr_tool_link")
 right_controller.loadURDFAndSRDF(path_model_urdf, path_model_srdf)
+
+
+
+#controller.quat_x=-0.5
+#controller.quat_y=-0.5
+#controller.quat_z=0.5
+#controller.quat_w=0.5
+controller.sim =true
+controller.quat_x=0.707
+controller.quat_y=0
+controller.quat_z=0
+controller.quat_w=0.707
+controller.quat_x_c=0
+controller.quat_y_c=1
+controller.quat_z_c=0
+controller.quat_w_c=0
+controller.Kp[0]=150
+controller.Kp[1]=150
+controller.Kp[2]=150
+controller.Dp[0]=1
+controller.Dp[1]=1
+controller.Dp[2]=1
+controller.Ko[0]=10
+controller.Ko[1]=10
+controller.Ko[2]=10
+controller.Do[0]=0.1
+controller.Do[1]=0.1
+controller.Do[2]=0.1
+controller.Kp_c=20
+controller.Dp_c=1
+controller.Ko_c=5
+controller.Do_c=0.1
+controller.squeeze_force = -60
+controller.g_force = 8
+controller.Ko_c = 0
+controller.Do_c =0
+
+left_controller.Kp=50
+left_controller.Dp=5
+left_controller.Ko=5
+left_controller.Do=0.01
+left_controller.Kn = 1
+left_controller.Dn = 1
+left_controller.sim =true
+left_controller.quat_x=0.707
+left_controller.quat_y=0
+left_controller.quat_z=0
+left_controller.quat_w=0.707
+left_controller.setPos(0.4,0.17,1)
+
+right_controller.Kp=50
+right_controller.Dp=5
+right_controller.Ko=5
+right_controller.Do=0.01
+right_controller.Kn = 1
+right_controller.Dn = 1
+right_controller.sim =true
+right_controller.quat_x=-0.707
+right_controller.quat_y=0
+right_controller.quat_z=0
+right_controller.quat_w=0.707
+right_controller.setPos(0.4,-0.17,1)
+controller.setPos(0.4,0.15,1)
+
 right_controller.configure()
+left_controller.configure()
+controller.configure()
 
 loadComponent("left_torqueTransition","TorqueTransition")
 setActivity("left_torqueTransition",0.1,10,ORO_SCHED_OTHER)
@@ -145,57 +211,7 @@ coman_gazebo.setControlMode("left_full_arm", "JointTorqueCtrl")
 coman_gazebo.setControlMode("right_full_arm", "JointTorqueCtrl")
 gazebo.toggleDynamicsSimulation(true)
 
-#controller.quat_x=-0.5
-#controller.quat_y=-0.5
-#controller.quat_z=0.5
-#controller.quat_w=0.5
-controller.sim =true
-controller.quat_x=0.707
-controller.quat_y=0
-controller.quat_z=0
-controller.quat_w=0.707
-controller.quat_x_c=0
-controller.quat_y_c=1
-controller.quat_z_c=0
-controller.quat_w_c=0
-controller.Kp=50
-controller.Dp=1
-controller.Ko=5
-controller.Do=1
-controller.Kp_c=20
-controller.Dp_c=1
-controller.Ko_c=5
-controller.Do_c=0.1
 
-left_controller.Kp=50
-left_controller.Dp=5
-left_controller.Ko=5
-left_controller.Do=0.01
-left_controller.Kn = 1
-left_controller.Dn = 1
-left_controller.sim =true
-left_controller.quat_x=0.707
-left_controller.quat_y=0
-left_controller.quat_z=0
-left_controller.quat_w=0.707
-left_controller.setPos(0.4,0.17,1)
-
-right_controller.Kp=50
-right_controller.Dp=5
-right_controller.Ko=5
-right_controller.Do=0.01
-right_controller.Kn = 1
-right_controller.Dn = 1
-right_controller.sim =true
-right_controller.quat_x=-0.707
-right_controller.quat_y=0
-right_controller.quat_z=0
-right_controller.quat_w=0.707
-right_controller.setPos(0.4,-0.17,1)
-
-
-
-controller.setPos(0.4,0.15,1)
 
 combiner.start()
 trajectorygenerator.start()
