@@ -122,8 +122,8 @@ controller.Kp_c=20
 controller.Dp_c=1
 controller.Ko_c=5
 controller.Do_c=0.1
-controller.squeeze_force = -60
-controller.g_force = 8
+controller.squeeze_force = -10
+controller.g_force = 0
 controller.Ko_c = 0
 controller.Do_c =0
 
